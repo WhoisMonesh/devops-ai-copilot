@@ -22,20 +22,19 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install agent deps
+      - name: Install all deps
         run: |
           pip install --upgrade pip
           pip install -r agent/requirements.txt
-          pip install ruff pytest httpx
+          pip install -r gui/requirements.txt
+          pip install ruff pytest
       - name: Lint agent (ruff)
         run: ruff check agent/
-      - name: Run agent tests
-        run: |
-          pytest agent/ -v --tb=short
-      - name: Install gui deps
-        run: pip install -r gui/requirements.txt
       - name: Lint gui (ruff)
         run: ruff check gui/
+      - name: Run tests
+        run: |
+          PYTHONPATH=. pytest tests/ -v --tb=short
 
   # ---- Build & Push Docker images (Parallel) -----------------------------
   build-agent:
