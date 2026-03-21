@@ -15,8 +15,10 @@ def _stub_module(name: str, **attrs):
     return mod
 
 _stub_module("prometheus_client", Counter=MagicMock(), Histogram=MagicMock(), Gauge=MagicMock(), Info=MagicMock(), CONTENT_TYPE_LATEST="text/plain; charset=utf-8", generate_latest=MagicMock())
-_stub_module("requests", __version__="2.32.5", HTTPError=Exception, Response=MagicMock())
+_stub_module("requests", __version__="2.32.5", HTTPError=Exception, Response=MagicMock(), Session=MagicMock())
 _stub_module("httpx", __version__="0.27.2")
+_stub_module("agent")
+_stub_module("agent.llm_client")
 
 
 class TestRateLimiter(unittest.TestCase):
