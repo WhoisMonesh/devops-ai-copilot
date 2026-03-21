@@ -3,11 +3,13 @@
 # Set via environment variables or GUI -> hot-reload
 
 import logging
+import os
 import requests
 from requests.auth import HTTPBasicAuth
 from langchain.tools import tool
 
 from config import config
+from agent.secrets import artifactory
 
 logger = logging.getLogger(__name__)
 
@@ -26,15 +28,16 @@ def _session() -> tuple:
             "Artifactory URL is not configured. "
             "Set ARTIFACTORY_URL env var or update via the GUI Configuration page."
         )
-    api_key = config.infra.artifactory_api_key
-    username = config.infra.artifactory_username
+    secret_data = artifactory.all()
+    api_key = secret_data.get("api_key", "")
+    username = secret_data.get("username", "")
     if not api_key and not username:
         raise ValueError(
             "Artifactory credentials missing. "
-            "Set ARTIFACTORY_API_KEY (and optionally ARTIFACTORY_USERNAME) via env or GUI."
+            "Set SECRET_ID_ARTIFACTORY env var pointing to AWS Secrets Manager secret."
         )
     session = requests.Session()
-    session.verify = False  # set True or pass CA bundle in production
+    session.verify = os.getenv("ARTIFACTORY_VERIFY_SSL", "false").lower() == "true"
     if api_key:
         session.headers.update({
             "X-JFrog-Art-Api": api_key,

@@ -31,7 +31,7 @@ jobs:
         run: ruff check agent/
       - name: Run agent tests
         run: |
-          pytest agent/ -v --tb=short || true
+          pytest agent/ -v --tb=short
       - name: Install gui deps
         run: pip install -r gui/requirements.txt
       - name: Lint gui (ruff)

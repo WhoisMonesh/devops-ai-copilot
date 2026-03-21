@@ -12,6 +12,7 @@ from elasticsearch import Elasticsearch
 from langchain.tools import tool
 
 from config import config
+from agent.secrets import kibana
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +25,10 @@ def _es_client() -> Elasticsearch:
             "Elasticsearch URL is not configured. "
             "Set ELASTICSEARCH_URL env var or update via the GUI Configuration page."
         )
-    user = config.infra.kibana_username
-    password = config.infra.kibana_password
+    # Try secrets first (from AWS Secrets Manager)
+    secret_data = kibana.all()
+    user = secret_data.get("username", "") or secret_data.get("elasticsearch_username", "")
+    password = secret_data.get("password", "") or secret_data.get("elasticsearch_password", "")
     if user and password:
         return Elasticsearch(es_url, basic_auth=(user, password), verify_certs=False)
     return Elasticsearch(es_url, verify_certs=False)
@@ -39,8 +42,9 @@ def _kibana_get(path: str, params: dict = None) -> dict:
             "Kibana URL is not configured. "
             "Set KIBANA_URL env var or update via the GUI Configuration page."
         )
-    user = config.infra.kibana_username
-    password = config.infra.kibana_password
+    secret_data = kibana.all()
+    user = secret_data.get("username", "")
+    password = secret_data.get("password", "")
     headers = {"kbn-xsrf": "true", "Content-Type": "application/json"}
     auth = HTTPBasicAuth(user, password) if user and password else None
     resp = requests.get(
@@ -60,8 +64,9 @@ def _kibana_post(path: str, body: dict = None) -> dict:
     base = config.infra.kibana_url.rstrip("/")
     if not base:
         raise ValueError("Kibana URL is not configured.")
-    user = config.infra.kibana_username
-    password = config.infra.kibana_password
+    secret_data = kibana.all()
+    user = secret_data.get("username", "")
+    password = secret_data.get("password", "")
     headers = {"kbn-xsrf": "true", "Content-Type": "application/json"}
     auth = HTTPBasicAuth(user, password) if user and password else None
     resp = requests.post(

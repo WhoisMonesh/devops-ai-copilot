@@ -40,25 +40,20 @@ spec:
             limits:
               cpu: "2000m"
               memory: "8Gi"
-              # Uncomment below if you have GPU nodes:
-              # nvidia.com/gpu: "1"
+              # nvidia.com/gpu: "1"  # uncomment for GPU nodes
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/tags
               port: 11434
-            initialDelaySeconds: 60
+            initialDelaySeconds: 30
             periodSeconds: 30
             failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/tags
               port: 11434
-            initialDelaySeconds: 30
+            initialDelaySeconds: 10
             periodSeconds: 10
-      volumes:
-        - name: ollama-data
-          persistentVolumeClaim:
-            claimName: ollama-models-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -87,5 +82,5 @@ spec:
   resources:
     requests:
       storage: 20Gi
-  # storageClassName: gp2  # uncomment for AWS EKS gp2
+  # storageClassName: gp2  # uncomment for AWS EKS
   # storageClassName: standard  # uncomment for GKE/minikube

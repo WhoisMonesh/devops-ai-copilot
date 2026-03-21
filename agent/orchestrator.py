@@ -16,7 +16,7 @@ from langchain_core.language_models.llms import LLM
 from langchain_core.prompts import PromptTemplate
 
 import llm_client  # unified multi-provider LLM client
-from config import config
+from .config import config
 
 logger = logging.getLogger(__name__)
 
@@ -118,49 +118,49 @@ class DevOpsLLM(LLM):
 def _load_tools() -> list:
     tools: list = []
     try:
-        from tools.k8s_tool import k8s_tools
+        from .tools.k8s_tool import k8s_tools
         tools.extend(k8s_tools)
         logger.info("Loaded K8s tools")
     except Exception as e:
         logger.warning("K8s tools unavailable: %s", e)
     try:
-        from tools.jenkins_tool import jenkins_tools
+        from .tools.jenkins_tool import jenkins_tools
         tools.extend(jenkins_tools)
         logger.info("Loaded Jenkins tools")
     except Exception as e:
         logger.warning("Jenkins tools unavailable: %s", e)
     try:
-        from tools.kibana_tool import kibana_tools
+        from .tools.kibana_tool import kibana_tools
         tools.extend(kibana_tools)
         logger.info("Loaded Kibana tools")
     except Exception as e:
         logger.warning("Kibana tools unavailable: %s", e)
     try:
-        from tools.artifactory_tool import artifactory_tools
+        from .tools.artifactory_tool import artifactory_tools
         tools.extend(artifactory_tools)
         logger.info("Loaded Artifactory tools")
     except Exception as e:
         logger.warning("Artifactory tools unavailable: %s", e)
     try:
-        from tools.nginx_tool import nginx_tools
-        tools.extend(nginx_tools)
+        from .tools.nginx_tool import get_nginx_tools
+        tools.extend(get_nginx_tools())
         logger.info("Loaded Nginx tools")
     except Exception as e:
         logger.warning("Nginx tools unavailable: %s", e)
     try:
-        from tools.prometheus_tools import PROMETHEUS_TOOLS
+        from .tools.prometheus_tools import PROMETHEUS_TOOLS
         tools.extend(PROMETHEUS_TOOLS)
         logger.info("Loaded Prometheus tools")
     except Exception as e:
         logger.warning("Prometheus tools unavailable: %s", e)
     try:
-        from tools.grafana_tool import GRAFANA_TOOLS
+        from .tools.grafana_tool import GRAFANA_TOOLS
         tools.extend(GRAFANA_TOOLS)
         logger.info("Loaded Grafana tools")
     except Exception as e:
         logger.warning("Grafana tools unavailable: %s", e)
     try:
-        from tools.llm_tools import LLM_TOOLS
+        from .tools.llm_tools import LLM_TOOLS
         tools.extend(LLM_TOOLS)
         logger.info("Loaded LLM tools")
     except Exception as e:
@@ -186,7 +186,7 @@ class Orchestrator:
         tools = _load_tools()
         llm = DevOpsLLM()
         tool_names = ", ".join(t.name for t in tools)
-        grafana_url = getattr(config.infra, 'grafana_url', '') or 'not configured'
+        grafana_url = config.infra.grafana_url or 'not configured'
         prompt = PromptTemplate.from_template(
             SYSTEM_PROMPT.format(
                 tool_names=tool_names,

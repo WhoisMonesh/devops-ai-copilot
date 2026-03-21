@@ -108,7 +108,7 @@ def jenkins_get_console_output(job_name: str, build_number: Optional[int] = None
 def jenkins_list_failed_builds(limit: int = 10) -> list:
     """Return a list of recently failed Jenkins builds across all jobs."""
     try:
-        jobs = jenkins_list_jobs.invoke({})
+        jobs = jenkins_list_jobs({})
         failed = []
         for job in jobs[:50]:
             last = job.get("lastBuild")

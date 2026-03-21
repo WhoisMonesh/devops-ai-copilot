@@ -52,6 +52,8 @@ class LLMConfig:
     ollama_model: str     = field(default_factory=lambda: _env("OLLAMA_MODEL", "mistral:7b"))
     ollama_temperature: float = field(default_factory=lambda: _env_float("OLLAMA_TEMPERATURE", 0.7))
     ollama_max_tokens: int    = field(default_factory=lambda: _env_int("OLLAMA_MAX_TOKENS", 2048))
+    ollama_timeout: int       = field(default_factory=lambda: _env_int("OLLAMA_TIMEOUT", 120))
+    ollama_num_ctx: int       = field(default_factory=lambda: _env_int("OLLAMA_NUM_CTX", 4096))
 
     # ---- Provider 2: Vertex AI / Gemini ----
     # Non-sensitive: project, location, model -> env vars

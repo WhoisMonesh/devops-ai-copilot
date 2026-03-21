@@ -9,6 +9,7 @@ from requests.auth import HTTPBasicAuth
 from langchain.tools import tool
 
 from config import config
+from agent.secrets import jenkins
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +22,13 @@ def _auth() -> tuple:
             "Jenkins URL is not configured. "
             "Set JENKINS_URL env var or update via the GUI Configuration page."
         )
-    user = config.infra.jenkins_username
-    token = config.infra.jenkins_api_token
+    secret_data = jenkins.all()
+    user = secret_data.get("username", "")
+    token = secret_data.get("api_token", "")
     if not user or not token:
         raise ValueError(
             "Jenkins credentials missing. "
-            "Set JENKINS_USERNAME and JENKINS_API_TOKEN via env or GUI."
+            "Set SECRET_ID_JENKINS env var pointing to AWS Secrets Manager secret."
         )
     return url, HTTPBasicAuth(user, token)
 

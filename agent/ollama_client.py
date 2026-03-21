@@ -16,8 +16,8 @@ class OllamaClient:
     """Wrapper around Ollama REST API + LangChain integration."""
 
     def __init__(self):
-        self.base_url = config.ai.ollama_base_url
-        self.timeout  = config.ai.ollama_timeout
+        self.base_url = config.llm.ollama_base_url
+        self.timeout  = config.llm.ollama_timeout
 
     # ------------------------------------------------------------------
     # Health & discovery
@@ -67,7 +67,7 @@ class OllamaClient:
     def pull_model(self, model: Optional[str] = None) -> bool:
         """Pull a model into the Ollama container (blocking).
         Returns True on success."""
-        model = model or config.ai.ollama_model
+        model = model or config.llm.ollama_model
         logger.info(f"Pulling Ollama model: {model} ...")
         try:
             r = requests.post(
@@ -85,7 +85,7 @@ class OllamaClient:
 
     def ensure_model(self, model: Optional[str] = None) -> bool:
         """Pull the model only if it is not already present."""
-        model = model or config.ai.ollama_model
+        model = model or config.llm.ollama_model
         if model in self.model_names():
             logger.info(f"Model '{model}' already present, skipping pull.")
             return True
@@ -109,23 +109,23 @@ class OllamaClient:
     # ------------------------------------------------------------------
     def get_llm(self, model: Optional[str] = None) -> Ollama:
         """Return a LangChain Ollama LLM instance (for plain text generation)."""
-        model = model or config.ai.ollama_model
+        model = model or config.llm.ollama_model
         return Ollama(
             base_url    = self.base_url,
             model       = model,
-            temperature = config.ai.ollama_temperature,
-            num_ctx     = config.ai.ollama_num_ctx,
+            temperature = config.llm.ollama_temperature,
+            num_ctx     = config.llm.ollama_num_ctx,
             timeout     = self.timeout,
         )
 
     def get_chat_model(self, model: Optional[str] = None) -> ChatOllama:
         """Return a LangChain ChatOllama instance (for agent/chat use)."""
-        model = model or config.ai.ollama_model
+        model = model or config.llm.ollama_model
         return ChatOllama(
             base_url    = self.base_url,
             model       = model,
-            temperature = config.ai.ollama_temperature,
-            num_ctx     = config.ai.ollama_num_ctx,
+            temperature = config.llm.ollama_temperature,
+            num_ctx     = config.llm.ollama_num_ctx,
             timeout     = self.timeout,
         )
 
@@ -134,7 +134,7 @@ class OllamaClient:
     # ------------------------------------------------------------------
     def generate(self, prompt: str, model: Optional[str] = None) -> str:
         """Send a raw prompt to Ollama and return the response string."""
-        model = model or config.ai.ollama_model
+        model = model or config.llm.ollama_model
         try:
             r = requests.post(
                 f"{self.base_url}/api/generate",
