@@ -15,9 +15,19 @@ ARG OLLAMA_MODEL=qwen2.5:3b
 ENV OLLAMA_MODEL=${OLLAMA_MODEL}
 
 # Pre-download the model at BUILD TIME for offline use.
-# ollama CLI pulls the model blobs directly into /root/.ollama/models/
-# without needing a running server. This is baked into the image layer.
-RUN ollama pull ${OLLAMA_MODEL}
+# ollama pull requires a running ollama server, so we start one in the background,
+# wait for it to be ready, pull the model, then stop the server.
+RUN bash -c 'echo "Starting Ollama server..." && \
+    ollama serve > /tmp/ollama.log 2>&1 & \
+    SERVER_PID=$! && \
+    echo "Waiting for server to be ready..." && \
+    for i in $(seq 1 30); do \
+        curl -s http://localhost:11434/api/tags > /dev/null 2>&1 && { echo "Server ready."; break; } || { echo "Attempt $i/30..."; sleep 2; }; \
+    done && \
+    echo "Pulling model ${OLLAMA_MODEL}..." && \
+    ollama pull ${OLLAMA_MODEL} && \
+    echo "Model downloaded, stopping server..." && \
+    kill $SERVER_PID 2>/dev/null || true'
 
 # Health check - verify ollama is responding
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \

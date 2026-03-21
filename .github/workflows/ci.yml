@@ -113,7 +113,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: gui/
-          file: gui/Dockerfile
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -191,8 +191,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: trivy-db
-          key: trivy-db-${{ github.run_id }}
-          restore-keys: trivy-db-
+          key: trivy-db-v2-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: trivy-db-v2-
       - name: Scan devops-ai-copilot-agent image
         uses: aquasecurity/trivy-action@master
         with:
@@ -237,8 +237,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: trivy-db
-          key: trivy-db-${{ github.run_id }}
-          restore-keys: trivy-db-
+          key: trivy-db-v2-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: trivy-db-v2-
       - name: Scan devops-ai-copilot-gui image
         uses: aquasecurity/trivy-action@master
         with:
@@ -283,8 +283,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: trivy-db
-          key: trivy-db-${{ github.run_id }}
-          restore-keys: trivy-db-
+          key: trivy-db-v2-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: trivy-db-v2-
       - name: Scan devops-ai-copilot-ollama image
         uses: aquasecurity/trivy-action@master
         with:
