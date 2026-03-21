@@ -14,7 +14,7 @@ def _stub_module(name: str, **attrs):
     return mod
 
 _stub_module("boto3", __version__="1.34.0")
-_stub_module("requests", __version__="2.32.5", HTTPError=Exception, Response=MagicMock())
+_stub_module("requests", __version__="2.32.5", HTTPError=Exception, Response=MagicMock(), Session=MagicMock())
 _stub_module("httpx", __version__="0.27.2")
 
 
