@@ -8,12 +8,10 @@ LABEL org.opencontainers.image.title="devops-ai-copilot-ollama"
 LABEL org.opencontainers.image.description="Ollama with DevOps-optimized 4GB LLM model for DevOps AI Copilot - Offline capable"
 LABEL org.opencontainers.image.source="https://github.com/WhoisMonesh/devops-ai-copilot"
 
-# 4GB-class models available:
-#   mistral:7b       - Excellent all-around (recommended for DevOps) ~4.4GB
-#   llama3.2:3b      - Efficient, good quality ~2GB
+# 2GB-class models available (fast download for CI):
+#   llama3.2:3b      - Efficient, good quality ~2GB (recommended for CI)
 #   phi3:3.8b        - Microsoft Phi-3, very capable ~2.2GB
-#   qwen2.5:7b       - Alibaba Qwen, strong coding ~4.4GB
-ARG OLLAMA_MODEL=mistral:7b
+ARG OLLAMA_MODEL=llama3.2:3b
 ENV OLLAMA_MODEL=${OLLAMA_MODEL}
 
 # Pre-download the model at BUILD TIME for offline use
