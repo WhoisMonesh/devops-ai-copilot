@@ -12,7 +12,7 @@ data:
 
   # Ollama
   OLLAMA_BASE_URL: "http://ollama.devops-copilot.svc:11434"
-  OLLAMA_MODEL: "mistral"
+  OLLAMA_MODEL: "mistral:7b"
   OLLAMA_TEMPERATURE: "0.7"
   OLLAMA_MAX_TOKENS: "2048"
 

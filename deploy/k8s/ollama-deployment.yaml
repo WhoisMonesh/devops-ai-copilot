@@ -33,9 +33,6 @@ spec:
           env:
             - name: OLLAMA_HOST
               value: "0.0.0.0"
-          volumeMounts:
-            - name: ollama-data
-              mountPath: /root/.ollama
           resources:
             requests:
               cpu: "500m"

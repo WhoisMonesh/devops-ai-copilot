@@ -88,7 +88,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s   # Allow time for model to load on first start
+      start_period: 30s   # Model is pre-baked, minimal startup time
     networks:
       - copilot
     deploy:

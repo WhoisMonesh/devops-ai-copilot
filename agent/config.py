@@ -49,7 +49,7 @@ class LLMConfig:
 
     # ---- Provider 1: Ollama (local in-cluster, no credentials needed) ----
     ollama_base_url: str  = field(default_factory=lambda: _env("OLLAMA_BASE_URL", "http://ollama:11434"))
-    ollama_model: str     = field(default_factory=lambda: _env("OLLAMA_MODEL", "mistral"))
+    ollama_model: str     = field(default_factory=lambda: _env("OLLAMA_MODEL", "mistral:7b"))
     ollama_temperature: float = field(default_factory=lambda: _env_float("OLLAMA_TEMPERATURE", 0.7))
     ollama_max_tokens: int    = field(default_factory=lambda: _env_int("OLLAMA_MAX_TOKENS", 2048))
 
