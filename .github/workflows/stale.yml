@@ -1,0 +1,64 @@
+name: "Stale Bot"
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Every Monday at 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    name: Mark and close stale issues/PRs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run stale action
+        uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          # ── Issues ──────────────────────────────────────────────────────────────
+          days-before-issue-stale: 30
+          days-before-issue-close: 7
+          stale-issue-label: "stale"
+          stale-issue-message: |
+            :zzz: This issue has been automatically marked as stale because it has not had
+            recent activity. It will be closed in **7 days** if no further activity occurs.
+
+            If this is still relevant, please:
+            - Add a comment with an update
+            - Remove the `stale` label
+
+            _DevOps AI Copilot bot_
+          close-issue-message: |
+            :lock: This issue has been automatically closed due to inactivity.
+            Feel free to reopen it if it becomes relevant again.
+
+          # ── Pull Requests ────────────────────────────────────────────────────────
+          days-before-pr-stale: 21
+          days-before-pr-close: 7
+          stale-pr-label: "stale"
+          stale-pr-message: |
+            :zzz: This pull request has been marked as stale because it has not had
+            recent activity. It will be closed in **7 days** if no further activity occurs.
+
+            Please:
+            - Push new commits or address review comments
+            - Remove the `stale` label to keep this PR open
+
+            _DevOps AI Copilot bot_
+          close-pr-message: |
+            :lock: This pull request has been automatically closed due to inactivity.
+            Feel free to reopen it if you wish to continue the work.
+
+          # ── Exemptions ──────────────────────────────────────────────────────────────
+          exempt-issue-labels: "pinned,security,critical,in-progress,help-wanted"
+          exempt-pr-labels: "pinned,security,critical,in-progress,do-not-close"
+          exempt-all-milestones: true
+
+          # ── Limits ───────────────────────────────────────────────────────────────────
+          operations-per-run: 100
+          remove-stale-when-updated: true
+          debug-only: false

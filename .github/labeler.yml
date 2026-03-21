@@ -1,0 +1,94 @@
+# .github/labeler.yml
+# Maps file path patterns to PR labels for actions/labeler@v5
+# Ref: https://github.com/actions/labeler
+
+# ── Component labels ──────────────────────────────────────────────────────
+agent:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'agent/**'
+
+agent/tools:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'agent/tools/**'
+
+gui:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'gui/**'
+
+deploy:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'deploy/**'
+
+kubernetes:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'deploy/k8s/**'
+      - '**/*.yaml'
+      - '**/*.yml'
+      - '**/Helm*'
+      - '**/Chart.yaml'
+
+docker:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/Dockerfile*'
+      - '**/docker-compose*.yml'
+
+ci/cd:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'tests/**'
+      - '**/*_test.py'
+      - '**/test_*.py'
+      - '**/conftest.py'
+
+scripts:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'scripts/**'
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**'
+      - '**/*.rst'
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/requirements*.txt'
+      - '**/pyproject.toml'
+      - '**/setup.py'
+      - '**/setup.cfg'
+      - '.github/dependabot.yml'
+
+security:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/Dockerfile*'
+      - '.github/workflows/ci.yml'
+      - '**/requirements*.txt'
+      - 'agent/secrets.py'
+      - '**/*.pem'
+      - '**/*.key'
+
+configuration:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '**/*.toml'
+      - '**/*.cfg'
+      - '**/*.ini'
+      - '**/*.env*'

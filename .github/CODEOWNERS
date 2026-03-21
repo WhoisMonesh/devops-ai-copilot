@@ -1,0 +1,31 @@
+# CODEOWNERS - automatic review assignments
+# Format: <pattern> <owner1> <owner2> ...
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global fallback — every PR requires review from the repo owner
+*                          @WhoisMonesh
+
+# ── Agent (AI / LLM core) ───────────────────────────────────────────────────
+agent/                     @WhoisMonesh
+agent/tools/               @WhoisMonesh
+agent/secrets.py           @WhoisMonesh
+
+# ── GUI / Frontend ──────────────────────────────────────────────────────────
+gui/                       @WhoisMonesh
+
+# ── CI/CD & Infra ───────────────────────────────────────────────────────────
+.github/                   @WhoisMonesh
+deploy/                    @WhoisMonesh
+deploy/k8s/                @WhoisMonesh
+
+# ── Tests ───────────────────────────────────────────────────────────────────
+tests/                     @WhoisMonesh
+
+# ── Scripts / Data ingestion ─────────────────────────────────────────────────
+scripts/                   @WhoisMonesh
+
+# ── Dependency manifests (security-sensitive) ────────────────────────────────
+agent/requirements.txt     @WhoisMonesh
+gui/requirements.txt       @WhoisMonesh
+**/Dockerfile*             @WhoisMonesh
+**/docker-compose*.yml     @WhoisMonesh

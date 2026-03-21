@@ -1,0 +1,24 @@
+# .github/auto-assign.yml
+# Config for kentaro-m/auto-assign-action
+# Automatically assigns reviewers and assignees when a PR is opened
+
+# Assign the PR author as the assignee
+addAssignees: author
+
+# Add reviewers (code owners)
+addReviewers: true
+
+# List of reviewers to always add
+reviewers:
+  - WhoisMonesh
+
+# Skip adding reviewers if the PR author is in this list
+skipKeywords:
+  - wip
+  - draft
+  - "[WIP]"
+  - "[DRAFT]"
+
+# Number of reviewers to randomly select from the list above
+# 0 means all reviewers will be assigned
+numberOfReviewers: 0

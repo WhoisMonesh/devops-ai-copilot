@@ -1,0 +1,117 @@
+# .github/dependabot.yml
+# Automated dependency updates via Dependabot
+# Ref: https://docs.github.com/en/code-security/dependabot
+
+version: 2
+
+updates:
+  # ── Python: agent/ ─────────────────────────────────────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "WhoisMonesh"
+    assignees:
+      - "WhoisMonesh"
+    labels:
+      - "dependencies"
+      - "python"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    ignore:
+      # Ignore major version bumps for core ML libs (test first)
+      - dependency-name: "langchain"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "openai"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "streamlit"
+        update-types: ["version-update:semver-major"]
+
+  # ── Python: gui/ ───────────────────────────────────────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/gui"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "WhoisMonesh"
+    assignees:
+      - "WhoisMonesh"
+    labels:
+      - "dependencies"
+      - "python"
+      - "gui"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps/gui)"
+      include: "scope"
+
+  # ── Docker ──────────────────────────────────────────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/deploy"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "WhoisMonesh"
+    assignees:
+      - "WhoisMonesh"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps/docker)"
+
+  - package-ecosystem: "docker"
+    directory: "/gui"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "WhoisMonesh"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "gui"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps/docker/gui)"
+
+  # ── GitHub Actions ─────────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "WhoisMonesh"
+    assignees:
+      - "WhoisMonesh"
+    labels:
+      - "dependencies"
+      - "ci/cd"
+      - "automated"
+    commit-message:
+      prefix: "chore(deps/actions)"
+      include: "scope"

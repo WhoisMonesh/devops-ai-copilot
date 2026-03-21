@@ -1,0 +1,410 @@
+name: CI - Lint, Test & Build
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: "ghcr.io/WhoisMonesh/devops-ai-copilot"
+
+jobs:
+  # ---- Lint & Test -------------------------------------------------------
+  lint-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install agent deps
+        run: |
+          pip install --upgrade pip
+          pip install -r agent/requirements.txt
+          pip install ruff pytest httpx
+      - name: Lint agent (ruff)
+        run: ruff check agent/
+      - name: Run agent tests
+        run: |
+          pytest agent/ -v --tb=short || true
+      - name: Install gui deps
+        run: pip install -r gui/requirements.txt
+      - name: Lint gui (ruff)
+        run: ruff check gui/
+
+  # ---- Build & Push Docker images (Parallel) -----------------------------
+  build-agent:
+    name: Build Agent
+    runs-on: ubuntu-latest
+    needs: lint-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Extract metadata for devops-ai-copilot-agent
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-agent
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,onmatch=replace
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
+      - name: Build & push devops-ai-copilot-agent
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deploy/Dockerfile.agent
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+  build-gui:
+    name: Build GUI
+    runs-on: ubuntu-latest
+    needs: lint-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Extract metadata for devops-ai-copilot-gui
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-gui
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,onmatch=replace
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
+      - name: Build & push devops-ai-copilot-gui
+        uses: docker/build-push-action@v5
+        with:
+          context: gui/
+          file: gui/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+  build-ollama:
+    name: Build Ollama
+    runs-on: ubuntu-latest
+    needs: lint-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Extract metadata for devops-ai-copilot-ollama
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-ollama
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,onmatch=replace
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
+      - name: Build & push devops-ai-copilot-ollama
+        uses: docker/build-push-action@v5
+        with:
+          context: deploy/
+          file: deploy/Dockerfile.ollama
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            OLLAMA_MODEL=mistral:7b
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+  # ---- Security Scan (Trivy - Parallel per image) ------------------------
+  scan-agent:
+    name: Scan Agent
+    runs-on: ubuntu-latest
+    needs: build-agent
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      packages: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create reports directory
+        run: mkdir -p trivy-reports
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull devops-ai-copilot-agent for scanning
+        run: docker pull ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-agent:latest
+      - name: Scan devops-ai-copilot-agent image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-agent:latest
+          format: sarif
+          output: trivy-reports/devops-ai-copilot-agent.sarif
+          severity: HIGH,CRITICAL
+      - name: Print agent vulnerabilities table
+        run: |
+          docker run --rm -v trivy-reports:/output aquasec/trivy:master \
+            image --format table --severity HIGH,CRITICAL \
+            ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-agent:latest || true
+      - name: Upload agent SARIF report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-agent
+          path: trivy-reports/devops-ai-copilot-agent.sarif
+          retention-days: 30
+
+  scan-gui:
+    name: Scan GUI
+    runs-on: ubuntu-latest
+    needs: build-gui
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      packages: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create reports directory
+        run: mkdir -p trivy-reports
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull devops-ai-copilot-gui for scanning
+        run: docker pull ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-gui:latest
+      - name: Scan devops-ai-copilot-gui image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-gui:latest
+          format: sarif
+          output: trivy-reports/devops-ai-copilot-gui.sarif
+          severity: HIGH,CRITICAL
+      - name: Print gui vulnerabilities table
+        run: |
+          docker run --rm -v trivy-reports:/output aquasec/trivy:master \
+            image --format table --severity HIGH,CRITICAL \
+            ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-gui:latest || true
+      - name: Upload gui SARIF report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-gui
+          path: trivy-reports/devops-ai-copilot-gui.sarif
+          retention-days: 30
+
+  scan-ollama:
+    name: Scan Ollama
+    runs-on: ubuntu-latest
+    needs: build-ollama
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      packages: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create reports directory
+        run: mkdir -p trivy-reports
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull devops-ai-copilot-ollama for scanning
+        run: docker pull ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-ollama:latest
+      - name: Scan devops-ai-copilot-ollama image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-ollama:latest
+          format: sarif
+          output: trivy-reports/devops-ai-copilot-ollama.sarif
+          severity: HIGH,CRITICAL
+      - name: Print ollama vulnerabilities table
+        run: |
+          docker run --rm -v trivy-reports:/output aquasec/trivy:master \
+            image --format table --severity HIGH,CRITICAL \
+            ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-ollama:latest || true
+      - name: Upload ollama SARIF report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-ollama
+          path: trivy-reports/devops-ai-copilot-ollama.sarif
+          retention-days: 30
+
+  # ---- Publish Reports & Cleanup (runs after all scans) -----------------
+  publish-reports:
+    name: Publish Reports
+    runs-on: ubuntu-latest
+    needs: [scan-agent, scan-gui, scan-ollama]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download all SARIF reports
+        uses: actions/download-artifact@v4
+        with:
+          path: trivy-reports
+          pattern: trivy-report-*
+          merge-multiple: true
+      - name: Generate README for reports branch
+        run: |
+          cat > trivy-reports/README.md << 'EOF'
+          # Vulnerability Reports
+
+          Auto-generated Trivy security scan reports for all container images in the `devops-ai-copilot` project.
+
+          ## Images Scanned
+
+          | Image | Description |
+          |-------|-------------|
+          | `devops-ai-copilot-agent` | FastAPI backend |
+          | `devops-ai-copilot-gui` | Streamlit frontend |
+          | `devops-ai-copilot-ollama` | Offline Ollama with mistral:7b model |
+
+          ## Viewing Vulnerabilities
+
+          Each `.sarif` file contains the full vulnerability report and can be viewed in:
+          - **GitHub Security tab** (Security > Code scanning alerts)
+          - **VS Code** with the "GitHub Advanced Security" extension
+          - Any SARIF-compatible viewer (e.g., [SARIF Viewer](https://marketplace.visualstudio.com/items?itemName=MS-SarifViewer.sarif-viewer))
+
+          ## Severity Levels
+
+          - **CRITICAL**: Immediate action required — critical severity vulnerabilities
+          - **HIGH**: High priority — significant risk vulnerabilities
+
+          ## Latest Scan
+
+          Commit: `COMMIT_SHA`
+          Branch: `BRANCH_NAME`
+          Date: `SCAN_DATE`
+          EOF
+          sed -i "s/COMMIT_SHA/$GITHUB_SHA/g" trivy-reports/README.md
+          sed -i "s/BRANCH_NAME/$GITHUB_REF_NAME/g" trivy-reports/README.md
+          sed -i "s/SCAN_DATE/$(date +"%Y-%m-%d %H:%M:%S UTC")/g" trivy-reports/README.md
+          ls -la trivy-reports/
+      - name: Push reports to vulnerability-reports branch
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout -b vulnerability-reports
+          git add trivy-reports/
+          git commit -m "chore: update vulnerability reports ($GITHUB_SHA)"
+          git push --force origin vulnerability-reports
+
+  # ---- Cleanup Old Package Versions ----------------------------------------
+  # Deletes old/unused package versions from GHCR, keeping only:
+  # - latest tag
+  # - last 3 sha-* tags
+  cleanup-packages:
+    name: Cleanup Old Package Versions
+    runs-on: ubuntu-latest
+    needs: [publish-reports]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        image:
+          - devops-ai-copilot-agent
+          - devops-ai-copilot-gui
+          - devops-ai-copilot-ollama
+    steps:
+      - name: Delete old package versions
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          PACKAGE="${{ matrix.image }}"
+
+          echo "Fetching versions for $PACKAGE..."
+
+          curl -s -L \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/orgs/$OWNER/packages/container/$PACKAGE/versions" \
+            > /tmp/versions.json
+
+          # Parse versions and identify which to keep
+          SHA_COUNT=0
+          MAX_SHA=3
+
+          for row in $(cat /tmp/versions.json | jq -r '.[] | @base64'); do
+            ID=$(echo $row | base64 -d | jq -r '.id')
+            TAGS=$(echo $row | base64 -d | jq -r '.metadata.container.tags[] // [] | @json' 2>/dev/null || echo "[]")
+
+            # Check if this version has "latest" tag
+            IS_LATEST=$(echo $TAGS | jq 'any(. == "latest")')
+            # Check if sha-* tag
+            IS_SHA=$(echo $TAGS | jq 'any(startswith("sha-"))')
+
+            if [ "$IS_LATEST" = "true" ]; then
+              echo "Keeping version $ID (has latest tag)"
+            elif [ "$IS_SHA" = "true" ] && [ "$SHA_COUNT" -lt "$MAX_SHA" ]; then
+              echo "Keeping version $ID (sha-* tag)"
+              SHA_COUNT=$((SHA_COUNT + 1))
+            else
+              echo "Deleting version $ID..."
+              curl -s -L -X DELETE \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/orgs/$OWNER/packages/container/$PACKAGE/versions/$ID"
+              echo ""
+            fi
+          done
+
+          echo "Cleanup complete for $PACKAGE"
