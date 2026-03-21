@@ -1,0 +1,108 @@
+# deploy/docker-compose.yml
+# Local development stack: agent + GUI + Ollama (with pre-pulled model)
+# Production: use deploy/k8s/ manifests instead
+
+version: "3.9"
+
+services:
+
+  # ── FastAPI Agent ──────────────────────────────────────────────────────────
+  agent:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.agent
+    image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-agent:local
+    container_name: copilot-agent
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LLM_PROVIDER=ollama
+      - LOG_LEVEL=info
+      - API_KEY=${API_KEY:-}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - copilot
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # ── Streamlit GUI ──────────────────────────────────────────────────────────
+  gui:
+    build:
+      context: ..
+      dockerfile: gui/Dockerfile
+    image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-gui:local
+    container_name: copilot-gui
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - AGENT_URL=http://agent:8000
+      - AGENT_API_KEY=${API_KEY:-}
+    depends_on:
+      agent:
+        condition: service_healthy
+    networks:
+      - copilot
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ── Ollama (local LLM with pre-pulled model) ────────────────────────────
+  ollama:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.ollama
+      args:
+        - OLLAMA_MODEL=mistral:7b
+    image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-ollama:local
+    container_name: copilot-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_MODEL=mistral:7b
+      # Limit Ollama memory to leave room for the OS
+      - OLLAMA_NUM_PARALLEL=2
+      - OLLAMA_MAX_LOADED_MODELS=1
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s   # Allow time for model to load on first start
+    networks:
+      - copilot
+    deploy:
+      resources:
+        limits:
+          # mistral:7b needs ~6-8GB RAM to run; leave headroom for OS
+          memory: 8G
+        reservations:
+          memory: 4G
+
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  copilot:
+    driver: bridge

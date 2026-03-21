@@ -1,0 +1,207 @@
+# deploy/k8s/agent-deployment.yaml
+# Deploys the FastAPI agent on EKS / any K8s cluster
+# Uses IRSA (IAM Roles for Service Accounts) for AWS Secrets Manager access
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-copilot
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: copilot-agent
+  namespace: devops-copilot
+  annotations:
+    # Replace with your IRSA IAM role ARN
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/devops-copilot-agent-role
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: copilot-agent
+  namespace: devops-copilot
+  labels:
+    app: copilot-agent
+    version: v1.1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: copilot-agent
+  template:
+    metadata:
+      labels:
+        app: copilot-agent
+        version: v1.1
+    spec:
+      serviceAccountName: copilot-agent
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: agent
+          image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-agent:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            # LLM / Ollama
+            - name: LLM_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: LLM_PROVIDER
+            - name: OLLAMA_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: OLLAMA_BASE_URL
+            - name: OLLAMA_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: OLLAMA_MODEL
+            # Infra URLs
+            - name: NGINX_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: NGINX_URL
+            - name: KIBANA_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: KIBANA_URL
+            - name: JENKINS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: JENKINS_URL
+            - name: ARTIFACTORY_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: ARTIFACTORY_URL
+            - name: PROMETHEUS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: PROMETHEUS_URL
+            - name: GRAFANA_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: GRAFANA_URL
+            # Secret ARNs
+            - name: SECRET_ID_JENKINS
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: SECRET_ID_JENKINS
+            - name: SECRET_ID_KIBANA
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: SECRET_ID_KIBANA
+            - name: SECRET_ID_ARTIFACTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: SECRET_ID_ARTIFACTORY
+            - name: SECRET_ID_NGINX
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: SECRET_ID_NGINX
+            # Kubernetes
+            - name: K8S_IN_CLUSTER
+              valueFrom:
+                configMapKeyRef:
+                  name: copilot-config
+                  key: K8S_IN_CLUSTER
+            - name: K8S_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            # Auth - set via Secret, not ConfigMap
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: copilot-secrets
+                  key: api-key
+                  optional: true
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: copilot-agent
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: copilot-agent
+  namespace: devops-copilot
+  labels:
+    app: copilot-agent
+spec:
+  selector:
+    app: copilot-agent
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: copilot-agent-hpa
+  namespace: devops-copilot
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: copilot-agent
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

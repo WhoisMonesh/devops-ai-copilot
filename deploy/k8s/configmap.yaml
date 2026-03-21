@@ -1,0 +1,47 @@
+# deploy/k8s/configmap.yaml
+# Non-sensitive configuration values for the agent pod
+# Credentials are stored in AWS Secrets Manager, not here
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: copilot-config
+  namespace: devops-copilot
+data:
+  # LLM Provider
+  LLM_PROVIDER: "ollama"
+
+  # Ollama
+  OLLAMA_BASE_URL: "http://ollama.devops-copilot.svc:11434"
+  OLLAMA_MODEL: "mistral"
+  OLLAMA_TEMPERATURE: "0.7"
+  OLLAMA_MAX_TOKENS: "2048"
+
+  # AWS Bedrock (fallback / hybrid)
+  BEDROCK_REGION: "us-east-1"
+  BEDROCK_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0"
+  BEDROCK_TEMPERATURE: "0.2"
+  BEDROCK_MAX_TOKENS: "2048"
+
+  # AWS Secrets Manager - Secret IDs (ARN or name)
+  SECRET_ID_JENKINS: "devops-copilot/jenkins"
+  SECRET_ID_KIBANA: "devops-copilot/kibana"
+  SECRET_ID_ARTIFACTORY: "devops-copilot/artifactory"
+  SECRET_ID_NGINX: "devops-copilot/nginx"
+  SECRET_ID_VERTEXAI: "devops-copilot/vertexai"
+  SECRET_CACHE_TTL: "300"
+
+  # Infra URLs
+  NGINX_URL: "http://nginx.internal:80"
+  KIBANA_URL: "http://kibana.devops.svc.cluster.local:5601"
+  ELASTICSEARCH_URL: "http://elasticsearch.devops.svc.cluster.local:9200"
+  JENKINS_URL: "http://jenkins.devops.svc.cluster.local:8080"
+  ARTIFACTORY_URL: "http://artifactory.devops.svc.cluster.local:8082"
+  PROMETHEUS_URL: "http://prometheus.monitoring.svc:9090"
+  GRAFANA_URL: "http://grafana.monitoring.svc:3000"
+
+  # Kubernetes
+  K8S_IN_CLUSTER: "true"
+  K8S_NAMESPACE: "devops-copilot"
+
+  # Logging
+  LOG_LEVEL: "info"

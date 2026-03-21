@@ -1,0 +1,113 @@
+# Ollama - Local AI Model Server (3rd container)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: devops-copilot
+  labels:
+    app: ollama
+    component: ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  strategy:
+    type: Recreate  # required for persistent volume
+  template:
+    metadata:
+      labels:
+        app: ollama
+        component: ai
+    spec:
+      securityContext:
+        runAsNonRoot: false  # ollama needs root for model loading
+      initContainers:
+        # Pre-pull the default model on startup
+        - name: pull-model
+          image: ollama/ollama:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              ollama serve &
+              sleep 5
+              ollama pull ${OLLAMA_MODEL:-mistral}
+              kill %1
+          env:
+            - name: OLLAMA_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: devops-copilot-config
+                  key: OLLAMA_MODEL
+                  optional: true
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+              name: http
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0"
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "8Gi"
+              # Uncomment below if you have GPU nodes:
+              # nvidia.com/gpu: "1"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-models-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: devops-copilot
+  labels:
+    app: ollama
+spec:
+  type: ClusterIP
+  selector:
+    app: ollama
+  ports:
+    - name: http
+      port: 11434
+      targetPort: 11434
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models-pvc
+  namespace: devops-copilot
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  # storageClassName: gp2  # uncomment for AWS EKS gp2
+  # storageClassName: standard  # uncomment for GKE/minikube

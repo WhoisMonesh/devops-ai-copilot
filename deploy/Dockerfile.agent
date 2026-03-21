@@ -1,0 +1,35 @@
+# deploy/Dockerfile.agent
+# Stage 1: builder
+FROM python:3.14-slim AS builder
+
+WORKDIR /build
+COPY agent/requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ---- runtime ----
+FROM python:3.14-slim
+
+LABEL org.opencontainers.image.title="devops-ai-copilot-agent"
+LABEL org.opencontainers.image.description="FastAPI backend for DevOps AI Copilot"
+LABEL org.opencontainers.image.source="https://github.com/WhoisMonesh/devops-ai-copilot"
+
+WORKDIR /app
+
+# Copy installed packages
+COPY --from=builder /install /usr/local
+
+# Copy application code
+COPY agent/ ./agent/
+
+# Non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN mkdir /app/logs && chown appuser:appuser /app/logs
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+
+# uvicorn string form resolves modules relative to the working directory
+CMD ["uvicorn", "agent.main:app", "--host", "0.0.0.0", "--port", "8000"]

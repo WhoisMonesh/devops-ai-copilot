@@ -1,0 +1,68 @@
+# codecov.yml
+# Configuration for Codecov coverage reporting bot
+# Ref: https://docs.codecov.com/docs/codecovyml-reference
+
+coverage:
+  # Minimum coverage required to pass
+  precision: 2
+  round: down
+  range: "60...90"
+
+  status:
+    project:
+      default:
+        # Overall project coverage must not drop by more than 5%
+        target: auto
+        threshold: 5%
+        base: auto
+        flags:
+          - agent
+          - gui
+        if_not_found: success
+        if_ci_failed: error
+
+    patch:
+      default:
+        # New code in a PR must have at least 70% coverage
+        target: 70%
+        threshold: 10%
+        base: auto
+        if_not_found: success
+        if_ci_failed: error
+
+# Component flags for per-area coverage
+flags:
+  agent:
+    paths:
+      - agent/
+    carryforward: true
+  gui:
+    paths:
+      - gui/
+    carryforward: true
+  tests:
+    paths:
+      - tests/
+    carryforward: false
+
+# PR comments from Codecov bot
+comment:
+  layout: "reach,diff,flags,tree,reach"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+  show_carryforward_flags: true
+
+# Ignore coverage for these paths
+ignore:
+  - "tests/**"
+  - "scripts/**"
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+  - "**/conftest.py"
+  - "gui/app.py"  # Streamlit entry-point - hard to test
+
+# GitHub integration
+github_checks:
+  annotations: true
