@@ -55,7 +55,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Auto-assign reviewer based on CODEOWNERS
-        uses: kentaro-m/auto-assign-action@v2.0.1
+        uses: kentaro-m/auto-assign-action@v2.0.2
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           configuration-path: .github/auto-assign.yml
