@@ -11,7 +11,7 @@ from requests.auth import HTTPBasicAuth
 from elasticsearch import Elasticsearch
 from langchain.tools import tool
 
-from config import config
+from agent.config import config
 from agent.secrets import kibana
 
 logger = logging.getLogger(__name__)

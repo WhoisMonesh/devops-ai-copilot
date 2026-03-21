@@ -63,15 +63,21 @@ class LLMConfig:
     vertexai_model: str    = field(default_factory=lambda: _env("VERTEXAI_MODEL", "gemini-1.5-pro"))
     vertexai_temperature: float = field(default_factory=lambda: _env_float("VERTEXAI_TEMPERATURE", 0.7))
     vertexai_max_tokens: int    = field(default_factory=lambda: _env_int("VERTEXAI_MAX_TOKENS", 2048))
-    # credentials_json fetched live from Secrets Manager via _sm.vertexai.get("credentials_json")
+    # Credentials: JSON string env var (raw) OR path to mounted file
+    vertexai_credentials_json: str  = field(default_factory=lambda: _env("VERTEXAI_CREDENTIALS_JSON", ""))
+    vertexai_credentials_file: str  = field(default_factory=lambda: _env("GOOGLE_APPLICATION_CREDENTIALS", ""))
 
     # ---- Provider 3: AWS Bedrock (IRSA role-based) ----
     # Non-sensitive: region, model_id -> env vars (or Secrets Manager fallback)
-    # Sensitive: nothing extra needed for IRSA; static keys stored in Secrets Manager if needed
+    # Sensitive: static keys stored in Secrets Manager if needed
     bedrock_region: str   = field(default_factory=lambda: _env("AWS_REGION", "us-east-1"))
     bedrock_model_id: str = field(default_factory=lambda: _env("BEDROCK_MODEL_ID", "anthropic.claude-3-sonnet-20240229-v1:0"))
     bedrock_temperature: float = field(default_factory=lambda: _env_float("BEDROCK_TEMPERATURE", 0.7))
     bedrock_max_tokens: int    = field(default_factory=lambda: _env_int("BEDROCK_MAX_TOKENS", 2048))
+    # Explicit AWS credentials (leave empty to use IRSA / instance role)
+    aws_access_key_id: str     = field(default_factory=lambda: _env("AWS_ACCESS_KEY_ID", ""))
+    aws_secret_access_key: str  = field(default_factory=lambda: _env("AWS_SECRET_ACCESS_KEY", ""))
+    aws_session_token: str     = field(default_factory=lambda: _env("AWS_SESSION_TOKEN", ""))
 
 
 # ---------------------------------------------------------------------------
@@ -93,10 +99,24 @@ class InfraConfig:
     artifactory_url: str  = field(default_factory=lambda: _env("ARTIFACTORY_URL", ""))
     prometheus_url: str   = field(default_factory=lambda: _env("PROMETHEUS_URL", "http://prometheus.monitoring.svc:9090"))
     grafana_url: str      = field(default_factory=lambda: _env("GRAFANA_URL", ""))
+    grafana_api_key: str  = field(default_factory=lambda: _env("GRAFANA_API_KEY", ""))
 
     # Log paths (for Nginx file-based log reading when direct access is available)
     nginx_access_log: str = field(default_factory=lambda: _env("NGINX_ACCESS_LOG", "/var/log/nginx/access.log"))
     nginx_error_log: str  = field(default_factory=lambda: _env("NGINX_ERROR_LOG",  "/var/log/nginx/error.log"))
+
+
+# ---------------------------------------------------------------------------
+# Permission Config (operation mode)
+# ---------------------------------------------------------------------------
+@dataclass
+class PermissionConfig:
+    # Default operation mode: read_only | read_write | safe_mode
+    default_mode: str = field(default_factory=lambda: _env("DEFAULT_OPERATION_MODE", "read_write"))
+    # Enable audit logging
+    audit_enabled: bool = field(default_factory=lambda: _env_bool("AUDIT_ENABLED", True))
+    # Path for audit logs
+    audit_log_path: str = field(default_factory=lambda: _env("AUDIT_LOG_PATH", "/var/log/devops-ai/audit.log"))
 
 
 # ---------------------------------------------------------------------------
@@ -118,12 +138,14 @@ class Config:
     llm: LLMConfig    = field(default_factory=LLMConfig)
     infra: InfraConfig = field(default_factory=InfraConfig)
     app: AppConfig    = field(default_factory=AppConfig)
+    permissions: PermissionConfig = field(default_factory=PermissionConfig)
 
     def reload(self):
         """Hot-reload: re-read env vars + flush Secrets Manager cache."""
         self.llm   = LLMConfig()
         self.infra = InfraConfig()
         self.app   = AppConfig()
+        self.permissions = PermissionConfig()
         _sm.invalidate()  # flush all cached secrets so next call re-fetches
 
     def to_dict(self) -> dict:
@@ -135,6 +157,7 @@ class Config:
             "ollama_model": self.llm.ollama_model,
             "ollama_temperature": self.llm.ollama_temperature,
             "ollama_max_tokens": self.llm.ollama_max_tokens,
+            "ollama_timeout": self.llm.ollama_timeout,
             "vertexai_project": self.llm.vertexai_project,
             "vertexai_location": self.llm.vertexai_location,
             "vertexai_model": self.llm.vertexai_model,
@@ -151,10 +174,14 @@ class Config:
             "jenkins_url": self.infra.jenkins_url,
             "artifactory_url": self.infra.artifactory_url,
             "prometheus_url": self.infra.prometheus_url,
-            "grafana_url": getattr(self.infra, 'grafana_url', ''),
+            "grafana_url": self.infra.grafana_url,
+            "grafana_api_key": self.infra.grafana_api_key,
             "k8s_in_cluster": self.infra.k8s_in_cluster,
             "k8s_namespace": self.infra.k8s_namespace,
             "k8s_kubeconfig_path": self.infra.k8s_kubeconfig_path,
+            # Permissions
+            "default_operation_mode": self.permissions.default_mode,
+            "audit_enabled": self.permissions.audit_enabled,
             # Secret IDs (ARN/name only - not the credential values!)
             "secret_id_jenkins": _sm.jenkins.is_configured(),
             "secret_id_kibana": _sm.kibana.is_configured(),

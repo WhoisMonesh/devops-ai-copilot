@@ -17,6 +17,7 @@ from langchain_core.prompts import PromptTemplate
 
 import llm_client  # unified multi-provider LLM client
 from .config import config
+from .permissions import get_permissions, check_tool_permission, audit_log
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,65 @@ class DevOpsLLM(LLM):
 
 
 # ---------------------------------------------------------------------------
+# Permission-aware tool wrapper
+# ---------------------------------------------------------------------------
+def _wrap_tool_with_permission(tool):
+    """Wrap a LangChain tool with permission checking."""
+    from langchain_core.tools import BaseTool
+
+    tool_name = tool.name
+    original_run = getattr(tool, '_run', None)
+    original_arun = getattr(tool, '_arun', None)
+
+    def permitted_run(*args, **kwargs):
+        allowed, reason = check_tool_permission(tool_name)
+        op_type = get_permissions().get_operation_type(tool_name)
+        audit_log(
+            tool_name=tool_name,
+            operation=op_type.value,
+            mode=get_permissions().mode.value,
+            allowed=allowed,
+            details=reason,
+        )
+        if not allowed:
+            logger.warning("Tool '%s' blocked by permissions: %s", tool_name, reason)
+            return f"Permission denied: {reason}"
+        if original_run:
+            return original_run(*args, **kwargs)
+        return f"Tool '{tool_name}' executed"
+
+    async def permitted_arun(*args, **kwargs):
+        allowed, reason = check_tool_permission(tool_name)
+        op_type = get_permissions().get_operation_type(tool_name)
+        audit_log(
+            tool_name=tool_name,
+            operation=op_type.value,
+            mode=get_permissions().mode.value,
+            allowed=allowed,
+            details=reason,
+        )
+        if not allowed:
+            logger.warning("Tool '%s' blocked by permissions: %s", tool_name, reason)
+            return f"Permission denied: {reason}"
+        if original_arun:
+            return await original_arun(*args, **kwargs)
+        return f"Tool '{tool_name}' executed"
+
+    class PermittedTool(BaseTool):
+        name = tool.name
+        description = tool.description
+        args_schema = getattr(tool, 'args_schema', None)
+
+        def _run(self, *args, **kwargs):
+            return permitted_run(*args, **kwargs)
+
+        async def _arun(self, *args, **kwargs):
+            return await permitted_arun(*args, **kwargs)
+
+    return PermittedTool()
+
+
+# ---------------------------------------------------------------------------
 # Tool loading (lazy import so missing creds don't crash startup)
 # ---------------------------------------------------------------------------
 def _load_tools() -> list:
@@ -165,9 +225,66 @@ def _load_tools() -> list:
         logger.info("Loaded LLM tools")
     except Exception as e:
         logger.warning("LLM tools unavailable: %s", e)
+    try:
+        from .tools.aws_tool import AWS_TOOLS
+        tools.extend(AWS_TOOLS)
+        logger.info("Loaded AWS tools")
+    except Exception as e:
+        logger.warning("AWS tools unavailable: %s", e)
+    try:
+        from .tools.cloudwatch_tool import CLOUDWATCH_TOOLS
+        tools.extend(CLOUDWATCH_TOOLS)
+        logger.info("Loaded CloudWatch tools")
+    except Exception as e:
+        logger.warning("CloudWatch tools unavailable: %s", e)
+    try:
+        from .tools.database_tool import DATABASE_TOOLS
+        tools.extend(DATABASE_TOOLS)
+        logger.info("Loaded Database tools")
+    except Exception as e:
+        logger.warning("Database tools unavailable: %s", e)
+    try:
+        from .tools.docker_tool import DOCKER_TOOLS
+        tools.extend(DOCKER_TOOLS)
+        logger.info("Loaded Docker tools")
+    except Exception as e:
+        logger.warning("Docker tools unavailable: %s", e)
+    try:
+        from .tools.github_tool import GITHUB_TOOLS
+        tools.extend(GITHUB_TOOLS)
+        logger.info("Loaded GitHub tools")
+    except Exception as e:
+        logger.warning("GitHub tools unavailable: %s", e)
+    try:
+        from .tools.pagerduty_tool import PAGERDUTY_TOOLS
+        tools.extend(PAGERDUTY_TOOLS)
+        logger.info("Loaded PagerDuty tools")
+    except Exception as e:
+        logger.warning("PagerDuty tools unavailable: %s", e)
+    try:
+        from .tools.ssl_tool import SSL_TOOLS
+        tools.extend(SSL_TOOLS)
+        logger.info("Loaded SSL tools")
+    except Exception as e:
+        logger.warning("SSL tools unavailable: %s", e)
+    try:
+        from .tools.terraform_tool import TERRAFORM_TOOLS
+        tools.extend(TERRAFORM_TOOLS)
+        logger.info("Loaded Terraform tools")
+    except Exception as e:
+        logger.warning("Terraform tools unavailable: %s", e)
+    try:
+        from .tools.knowledge_base_tool import KB_TOOLS
+        tools.extend(KB_TOOLS)
+        logger.info("Loaded Knowledge Base tools")
+    except Exception as e:
+        logger.warning("Knowledge Base tools unavailable: %s", e)
     if not tools:
         logger.error("No tools loaded - agent will have very limited capability")
-    return tools
+    # Wrap all tools with permission checks
+    wrapped_tools = [_wrap_tool_with_permission(t) for t in tools]
+    logger.info("Tools wrapped with permission checks | total=%d", len(wrapped_tools))
+    return wrapped_tools
 
 
 # ---------------------------------------------------------------------------

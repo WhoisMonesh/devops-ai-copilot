@@ -8,7 +8,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 from langchain.tools import tool
 
-from config import config
+from agent.config import config
 from agent.secrets import jenkins
 
 logger = logging.getLogger(__name__)
