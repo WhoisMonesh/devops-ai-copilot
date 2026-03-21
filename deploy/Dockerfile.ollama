@@ -1,5 +1,5 @@
 # deploy/Dockerfile.ollama
-# Standalone Ollama image for DevOps AI Copilot.
+# Standalone Ollama image for DevOps AI Copilot with pre-downloaded offline model.
 # Best models for 4GB RAM: llama3.2:3b, mistral:7b, phi3:3.8b, qwen2.5:7b
 # This image is used by the devops-ai-copilot when LLM_PROVIDER=ollama
 FROM ollama/ollama:latest
@@ -16,10 +16,11 @@ LABEL org.opencontainers.image.source="https://github.com/WhoisMonesh/devops-ai-
 ARG OLLAMA_MODEL=mistral:7b
 ENV OLLAMA_MODEL=${OLLAMA_MODEL}
 
-# Model will be pulled at runtime if not already present
-# To pre-pull: docker exec <container> ollama pull mistral:7b
+# Pre-pull the model at build time for offline use
+# This ensures the model is baked into the image
+RUN ollama pull ${OLLAMA_MODEL}
 
-# Health check - verify ollama is responding
+# Health check - verify ollama is responding and model is available
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:11434/api/tags || exit 1
 

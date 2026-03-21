@@ -22,30 +22,11 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: false  # ollama needs root for model loading
-      initContainers:
-        # Pre-pull the default model on startup
-        - name: pull-model
-          image: ollama/ollama:latest
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              ollama serve &
-              sleep 5
-              ollama pull ${OLLAMA_MODEL:-mistral}
-              kill %1
-          env:
-            - name: OLLAMA_MODEL
-              valueFrom:
-                configMapKeyRef:
-                  name: devops-copilot-config
-                  key: OLLAMA_MODEL
-                  optional: true
-          volumeMounts:
-            - name: ollama-data
-              mountPath: /root/.ollama
       containers:
         - name: ollama
-          image: ollama/ollama:latest
+          # Use GHCR image with pre-downloaded model for offline capability
+          image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-ollama:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 11434
               name: http
