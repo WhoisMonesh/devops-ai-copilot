@@ -15,7 +15,7 @@ from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.language_models.llms import LLM
 from langchain_core.prompts import PromptTemplate
 
-import llm_client  # unified multi-provider LLM client
+import agent.llm_client as llm_client  # unified multi-provider LLM client
 from .config import config
 from .permissions import get_permissions, check_tool_permission, audit_log
 
