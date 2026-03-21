@@ -165,7 +165,6 @@ jobs:
             OLLAMA_MODEL=qwen2.5:3b
           platforms: |
             linux/amd64
-            linux/arm64
 
   # ---- Security Scan (Trivy - Parallel per image) ------------------------
   scan-agent:
