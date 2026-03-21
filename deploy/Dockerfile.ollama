@@ -20,11 +20,13 @@ ENV OLLAMA_MODEL=${OLLAMA_MODEL}
 # The model is baked directly into the image - no internet needed at runtime
 # Build command: docker build --build-arg OLLAMA_MODEL=mistral:7b -t my-ollama .
 RUN bash -c 'echo "=== Downloading model ${OLLAMA_MODEL} for offline use ===" && \
+    pkill -f "ollama serve" 2>/dev/null || true && \
+    sleep 2 && \
     ollama serve & \
     until curl -s http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 2; done && \
     echo "Ollama server ready, pulling model..." && \
     ollama pull ${OLLAMA_MODEL} && \
-    pkill -f "ollama serve" && \
+    pkill -f "ollama serve" 2>/dev/null || true && \
     echo "Model ${OLLAMA_MODEL} downloaded successfully"'
 
 # Health check - verify ollama is responding
