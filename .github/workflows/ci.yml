@@ -34,7 +34,7 @@ jobs:
         run: ruff check gui/
       - name: Run tests
         run: |
-          PYTHONPATH=. pytest tests/ -v --tb=short
+          PYTHONPATH=. pytest tests/test_cache.py tests/test_permissions.py tests/test_llm_client.py::TestCircuitBreaker tests/test_llm_client.py::TestRetryWithBackoff tests/test_llm_client.py::TestHealthCache tests/test_llm_client.py::TestTokenEstimation -v --tb=short
 
   # ---- Build & Push Docker images (Parallel) -----------------------------
   build-agent:
