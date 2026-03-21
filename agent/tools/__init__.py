@@ -8,7 +8,7 @@ from .artifactory_tool import artifactory_tools
 from .kubernetes_tool import k8s_tools
 from .prometheus_tools import PROMETHEUS_TOOLS
 from .grafana_tool import GRAFANA_TOOLS
-from .jenkins_tools import JENKINS_TOOLS as jenkins_tools_v2
+from .jenkins_tools import JENKINS_TOOLS
 
 # Combine all tools
 ALL_TOOLS = (
