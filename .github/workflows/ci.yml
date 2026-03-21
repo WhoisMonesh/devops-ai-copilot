@@ -154,7 +154,7 @@ jobs:
       - name: Build & push devops-ai-copilot-ollama
         uses: docker/build-push-action@v5
         with:
-          context: deploy/
+          context: .
           file: deploy/Dockerfile.ollama
           push: true
           tags: ${{ steps.meta.outputs.tags }}
