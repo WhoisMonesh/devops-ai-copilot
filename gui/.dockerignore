@@ -1,0 +1,14 @@
+.git
+.github
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+*.png
+*.md
+LICENSE
+.env.example
+codecov.yml
+agent/
+deploy/
+tests/

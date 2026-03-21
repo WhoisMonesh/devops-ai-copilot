@@ -1,0 +1,16 @@
+.git
+.github
+*.png
+*.md
+LICENSE
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+tests/
+.env.example
+codecov.yml
+Makefile
+scripts/
+.vscode/
+.idea/

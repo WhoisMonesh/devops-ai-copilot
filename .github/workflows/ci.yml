@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: "ghcr.io/WhoisMonesh/devops-ai-copilot"
@@ -20,7 +24,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
       - name: Install all deps
         run: |
@@ -28,10 +32,8 @@ jobs:
           pip install -r agent/requirements.txt
           pip install -r gui/requirements.txt
           pip install ruff pytest
-      - name: Lint agent (ruff)
-        run: ruff check agent/
-      - name: Lint gui (ruff)
-        run: ruff check gui/
+      - name: Lint all code (ruff)
+        run: ruff check agent/ gui/
       - name: Run tests
         run: |
           PYTHONPATH=. pytest tests/test_cache.py tests/test_permissions.py tests/test_llm_client.py::TestCircuitBreaker tests/test_llm_client.py::TestRetryWithBackoff::test_all_attempts_fail_raises tests/test_llm_client.py::TestRetryWithBackoff::test_retries_on_failure tests/test_llm_client.py::TestHealthCache tests/test_llm_client.py::TestTokenEstimation -v --tb=short
@@ -73,8 +75,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=agent-cache
+          cache-to: type=gha,scope=agent-cache,mode=max
           platforms: |
             linux/amd64
             linux/arm64
@@ -115,8 +117,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=gui-cache
+          cache-to: type=gha,scope=gui-cache,mode=max
           platforms: |
             linux/amd64
             linux/arm64
@@ -157,10 +159,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=ollama-cache
+          cache-to: type=gha,scope=ollama-cache,mode=max
           build-args: |
-            OLLAMA_MODEL=mistral:7b
+            OLLAMA_MODEL=qwen2.5:3b
           platforms: |
             linux/amd64
             linux/arm64
@@ -186,17 +188,24 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull devops-ai-copilot-agent for scanning
         run: docker pull ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-agent:latest
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: trivy-db
+          key: trivy-db-${{ github.run_id }}
+          restore-keys: trivy-db-
       - name: Scan devops-ai-copilot-agent image
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-agent:latest
           format: sarif
           output: trivy-reports/devops-ai-copilot-agent.sarif
-          severity: HIGH,CRITICAL
+          severity: MEDIUM,HIGH,CRITICAL
+          skip-db-update: true
       - name: Print agent vulnerabilities table
         run: |
           docker run --rm -v trivy-reports:/output aquasec/trivy:master \
-            image --format table --severity HIGH,CRITICAL \
+            image --format table --severity MEDIUM,HIGH,CRITICAL \
             ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-agent:latest || true
       - name: Upload agent SARIF report
         uses: actions/upload-artifact@v4
@@ -225,17 +234,24 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull devops-ai-copilot-gui for scanning
         run: docker pull ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-gui:latest
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: trivy-db
+          key: trivy-db-${{ github.run_id }}
+          restore-keys: trivy-db-
       - name: Scan devops-ai-copilot-gui image
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-gui:latest
           format: sarif
           output: trivy-reports/devops-ai-copilot-gui.sarif
-          severity: HIGH,CRITICAL
+          severity: MEDIUM,HIGH,CRITICAL
+          skip-db-update: true
       - name: Print gui vulnerabilities table
         run: |
           docker run --rm -v trivy-reports:/output aquasec/trivy:master \
-            image --format table --severity HIGH,CRITICAL \
+            image --format table --severity MEDIUM,HIGH,CRITICAL \
             ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-gui:latest || true
       - name: Upload gui SARIF report
         uses: actions/upload-artifact@v4
@@ -264,17 +280,24 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull devops-ai-copilot-ollama for scanning
         run: docker pull ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-ollama:latest
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: trivy-db
+          key: trivy-db-${{ github.run_id }}
+          restore-keys: trivy-db-
       - name: Scan devops-ai-copilot-ollama image
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-ollama:latest
           format: sarif
           output: trivy-reports/devops-ai-copilot-ollama.sarif
-          severity: HIGH,CRITICAL
+          severity: MEDIUM,HIGH,CRITICAL
+          skip-db-update: true
       - name: Print ollama vulnerabilities table
         run: |
           docker run --rm -v trivy-reports:/output aquasec/trivy:master \
-            image --format table --severity HIGH,CRITICAL \
+            image --format table --severity MEDIUM,HIGH,CRITICAL \
             ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-ollama:latest || true
       - name: Upload ollama SARIF report
         uses: actions/upload-artifact@v4
@@ -325,6 +348,7 @@ jobs:
 
           - **CRITICAL**: Immediate action required — critical severity vulnerabilities
           - **HIGH**: High priority — significant risk vulnerabilities
+          - **MEDIUM**: Moderate risk — should be addressed when possible
 
           ## Latest Scan
 
@@ -397,11 +421,28 @@ jobs:
               SHA_COUNT=$((SHA_COUNT + 1))
             else
               echo "Deleting version $ID..."
-              curl -s -L -X DELETE \
-                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                "https://api.github.com/orgs/$OWNER/packages/container/$PACKAGE/versions/$ID"
+              delete_with_retry() {
+                local id=$1
+                local max_attempts=3
+                local attempt=1
+                while [ $attempt -le $max_attempts ]; do
+                  response=$(curl -s -L -w "%{http_code}" -o /dev/null -X DELETE \
+                    -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    "https://api.github.com/orgs/$OWNER/packages/container/$PACKAGE/versions/$id")
+                  if [ "$response" = "200" ] || [ "$response" = "204" ]; then
+                    echo "Successfully deleted version $id"
+                    return 0
+                  fi
+                  echo "Attempt $attempt failed with HTTP $response, retrying..."
+                  attempt=$((attempt + 1))
+                  sleep 5
+                done
+                echo "Failed to delete version $id after $max_attempts attempts" >&2
+                return 1
+              }
+              delete_with_retry $ID
               echo ""
             fi
           done
