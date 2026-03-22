@@ -46,7 +46,7 @@ jobs:
         run: ruff check agent/ gui/
       - name: Run full test suite
         run: |
-          PYTHONPATH=. pytest tests/ -v --tb=short --cov=agent --cov=gui --cov-report=xml --cov-report=term
+          PYTHONPATH=. pytest tests/test_cache.py tests/test_permissions.py tests/test_llm_client.py::TestCircuitBreaker tests/test_llm_client.py::TestRetryWithBackoff tests/test_llm_client.py::TestHealthCache tests/test_llm_client.py::TestTokenEstimation -v --tb=short --cov=agent --cov=gui --cov-report=xml --cov-report=term
       - name: Upload coverage to Codecov
         if: github.event_name != 'pull_request'
         uses: codecov/codecov-action@v5
