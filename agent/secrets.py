@@ -76,13 +76,9 @@ def get_secret(secret_id: str, force_refresh: bool = False) -> Dict[str, Any]:
     if not force_refresh and secret_id in _cache:
         fetched_at, data = _cache[secret_id]
         if now - fetched_at < CACHE_TTL_SECONDS:
-            logger.debug("[Secrets] cache hit for '%s'", secret_id)
+            logger.debug("[Secrets] cache hit")
             return data
-    logger.info(
-        "[Secrets] fetching '%s' from AWS Secrets Manager (region=%s)",
-        secret_id,
-        AWS_REGION,
-    )
+    logger.info("[Secrets] fetching secret from AWS Secrets Manager (region=%s)", AWS_REGION)
     try:
         client = _boto_client()
         response = client.get_secret_value(SecretId=secret_id)
@@ -93,10 +89,10 @@ def get_secret(secret_id: str, force_refresh: bool = False) -> Dict[str, Any]:
             raw = base64.b64decode(response["SecretBinary"]).decode("utf-8")
         data = json.loads(raw)
         _cache[secret_id] = (now, data)
-        logger.info("[Secrets] successfully fetched '%s'", secret_id)
+        logger.info("[Secrets] successfully fetched secret")
         return data
     except Exception as e:
-        logger.error("[Secrets] failed to fetch '%s': %s", secret_id, e)
+        logger.error("[Secrets] failed to fetch secret: %s", e)
         raise RuntimeError(f"Failed to fetch secret '{secret_id}': {e}") from e
 
 
@@ -123,7 +119,7 @@ def invalidate(secret_id: Optional[str] = None) -> None:
     """
     if secret_id:
         _cache.pop(secret_id, None)
-        logger.info("[Secrets] cache invalidated for '%s'", secret_id)
+        logger.info("[Secrets] cache invalidated")
     else:
         _cache.clear()
         logger.info("[Secrets] entire secrets cache flushed")

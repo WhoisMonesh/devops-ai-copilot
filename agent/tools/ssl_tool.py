@@ -25,8 +25,11 @@ def _get_ssl_context():
 def _fetch_cert(host: str, port: int = 443, timeout: int = 10) -> Optional[dict]:
     """Fetch SSL certificate from a host and return parsed info."""
     try:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         with socket.create_connection((host, port), timeout=timeout) as sock:
-            with ssl.wrap_socket(sock, cert_reqs=ssl.CERT_NONE) as ssock:
+            with ctx.wrap_socket(sock, server_hostname=host) as ssock:
                 cert_der = ssock.getpeercert(binary_form=True)
                 x509 = crypto.load_certificate(crypto.FILETYPE_ASN1, cert_der)
                 return {

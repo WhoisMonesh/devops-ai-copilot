@@ -408,8 +408,8 @@ async def get_audit_log(request: Request):
                 lines = f.readlines()
                 # Return last 100 entries
                 entries = [json.loads(line) for line in lines[-100:] if line.strip()]
-    except Exception as e:
-        return {"error": str(e), "entries": []}
+    except Exception:
+        return {"error": "Failed to read audit log entries", "entries": []}
     return {"entries": entries, "log_path": log_path}
 
 
