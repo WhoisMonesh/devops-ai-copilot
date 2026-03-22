@@ -266,14 +266,14 @@ jobs:
 
       - name: Pull Docker image
         run: |
-          IMAGE_TAG="${{ env.IMAGE_PREFIX }}/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}"
+          IMAGE_TAG="ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}"
           echo "Pulling $IMAGE_TAG"
           docker pull "$IMAGE_TAG"
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
+          image-ref: ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
           format: json
           output: trivy-results-${{ matrix.image }}.json
           severity: CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN
@@ -282,7 +282,7 @@ jobs:
       - name: Convert Trivy results to SARIF
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
+          image-ref: ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
           format: sarif
           output: trivy-results-${{ matrix.image }}.sarif
 
