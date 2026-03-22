@@ -200,7 +200,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=ollama-mistral-cache
-          cache-to: type=gha,scope=ollama-mistral-cache,mode=max
+          cache-to: type=gha,scope=ollama-mistral-cache,mode=min
           platforms: linux/amd64,linux/arm64
           build-args: OLLAMA_MODEL=mistral:7b
 
