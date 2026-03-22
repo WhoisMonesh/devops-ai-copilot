@@ -59,7 +59,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - name: Extract metadata for devops-ai-copilot-agent
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-agent
           tags: |
@@ -101,7 +101,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - name: Extract metadata for devops-ai-copilot-gui
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-gui
           tags: |
@@ -143,7 +143,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - name: Extract metadata for devops-ai-copilot-ollama
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-ollama
           tags: |
