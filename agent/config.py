@@ -14,7 +14,7 @@
 import os
 from dataclasses import dataclass, field
 
-import secrets as _sm  # our AWS Secrets Manager module
+from . import secrets as _sm  # our AWS Secrets Manager module
 
 
 # ---------------------------------------------------------------------------
