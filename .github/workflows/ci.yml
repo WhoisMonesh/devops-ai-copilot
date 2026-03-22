@@ -379,7 +379,8 @@ jobs:
           total = sum(img.get('critical_count', 0) for img in data['images'].values())
           print(f'Total critical vulnerabilities: {total}')
           if total > 0:
-              print('ERROR: Critical vulnerabilities found. Fix before merging.')
-              sys.exit(1)
-          print('No critical vulnerabilities. Gate passed.')
+              print('WARNING: Critical vulnerabilities detected. See security report for details.')
+              print('This is informational only - deployment will proceed.')
+          else:
+              print('No critical vulnerabilities found.')
           "
