@@ -298,8 +298,8 @@ Infrastructure-as-Code plan, apply, and state queries.
 |-------|----------|------|--------|-----|-------|
 | `agent` | 0 | 0 | 3 | 75 | 78 |
 | `gui` | 0 | 0 | 14 | 103 | 118 |
-| `ollama-qwen` | <!--OLLAMA_QWEN_CRITICAL--> | <!--OLLAMA_QWEN_HIGH--> | <!--OLLAMA_QWEN_MEDIUM--> | <!--OLLAMA_QWEN_LOW--> | <!--OLLAMA_QWEN_TOTAL--> |
-| `ollama-mistral` | <!--OLLAMA_MISTRAL_CRITICAL--> | <!--OLLAMA_MISTRAL_HIGH--> | <!--OLLAMA_MISTRAL_MEDIUM--> | <!--OLLAMA_MISTRAL_LOW--> | <!--OLLAMA_MISTRAL_TOTAL--> |
+| `ollama-qwen` | 1 | 8 | 26 | 9 | 44 |
+| `ollama-mistral` | 1 | 8 | 26 | 9 | 44 |
 
 **Latest scan:** `d1100dbf5125` 2026-03-22 05:24 UTC
 
