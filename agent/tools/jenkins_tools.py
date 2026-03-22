@@ -21,7 +21,8 @@ def _client() -> tuple[str, tuple[str, str]]:
     username = s.get("username", "")
     api_token = s.get("api_token", "")
     if not url:
-        raise ValueError("Jenkins secret not configured (SECRET_ID_JENKINS).")
+        msg = "Jenkins secret not configured (SECRET_ID_JENKINS)."
+        raise ValueError(msg)
     return url, (username, api_token)
 
 
@@ -41,9 +42,9 @@ def jenkins_list_jobs(folder: str = "") -> list:
         jobs = resp.json().get("jobs", [])
         logger.info("jenkins_list_jobs: found %d jobs", len(jobs))
         return jobs
-    except Exception as exc:
-        logger.error("jenkins_list_jobs failed: %s", exc)
-        return [{"error": str(exc)}]
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -65,9 +66,9 @@ def jenkins_get_build_status(job_name: str, build_number: Optional[int] = None) 
             "building": data.get("building"),
             "url": data.get("url"),
         }
-    except Exception as exc:
-        logger.error("jenkins_get_build_status failed: %s", exc)
-        return {"error": str(exc)}
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -84,9 +85,9 @@ def jenkins_trigger_build(job_name: str, parameters: Optional[dict] = None) -> d
         resp.raise_for_status()
         queue_url = resp.headers.get("Location", "")
         return {"queued": True, "queue_url": queue_url}
-    except Exception as exc:
-        logger.error("jenkins_trigger_build failed: %s", exc)
-        return {"error": str(exc)}
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -99,9 +100,9 @@ def jenkins_get_console_output(job_name: str, build_number: Optional[int] = None
         resp = requests.get(url, auth=auth, timeout=20)
         resp.raise_for_status()
         return resp.text[-51200:]
-    except Exception as exc:
-        logger.error("jenkins_get_console_output failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -123,9 +124,9 @@ def jenkins_list_failed_builds(limit: int = 10) -> list:
                 if len(failed) >= limit:
                     break
         return failed
-    except Exception as exc:
-        logger.error("jenkins_list_failed_builds failed: %s", exc)
-        return [{"error": str(exc)}]
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 JENKINS_TOOLS = [

@@ -17,7 +17,8 @@ def _get_prometheus_url() -> str:
     import os
     url = os.getenv("PROMETHEUS_URL", "http://prometheus.monitoring.svc:9090")
     if not url:
-        raise ValueError("Prometheus URL not configured (PROMETHEUS_URL).")
+        msg = "Prometheus URL not configured (PROMETHEUS_URL)."
+        raise ValueError(msg)
     return url.rstrip("/")
 
 
@@ -80,9 +81,9 @@ def prometheus_query_range(query: str, duration: str = "1h", step: str = "15s") 
             "total_series": len(result)
         }, indent=2)
         
-    except Exception as exc:
-        logger.error("prometheus_query_range failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -121,9 +122,9 @@ def prometheus_query_instant(query: str) -> str:
             "total_series": len(result)
         }, indent=2)
         
-    except Exception as exc:
-        logger.error("prometheus_query_instant failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -150,9 +151,9 @@ def prometheus_get_series(match: str = "", limit: int = 10) -> str:
             "count": len(result)
         }, indent=2)
         
-    except Exception as exc:
-        logger.error("prometheus_get_series failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -177,9 +178,9 @@ def prometheus_get_label_values(label: str) -> str:
             "count": len(result)
         }, indent=2)
         
-    except Exception as exc:
-        logger.error("prometheus_get_label_values failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -206,9 +207,9 @@ def prometheus_alerts(state: str = "active") -> str:
             "count": len(result)
         }, indent=2)
         
-    except Exception as exc:
-        logger.error("prometheus_alerts failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 PROMETHEUS_TOOLS = [

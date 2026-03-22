@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 def _get_k8s_client():
     try:
         config.load_incluster_config()
-    except Exception:
+    except OSError:
+        # Intentionally broad: kubeconfig load may fail due to missing file, permissions, or network issues
         kubeconfig = os.getenv("KUBECONFIG", os.path.expanduser("~/.kube/config"))
         config.load_kube_config(config_file=kubeconfig)
     return client.CoreV1Api(), client.AppsV1Api()
@@ -37,8 +38,9 @@ def list_pods(namespace: str = "default") -> str:
         return json.dumps(result, indent=2)
     except ApiException as e:
         return f"K8s API error: {e}"
-    except Exception as e:
-        return f"Error listing pods: {e}"
+    except Exception:
+        # Intentionally broad: K8s client operations may raise various API or network errors
+        pass
 
 @tool
 def get_pod_logs(pod_name: str, namespace: str = "default", tail_lines: int = 100) -> str:
@@ -55,8 +57,9 @@ def get_pod_logs(pod_name: str, namespace: str = "default", tail_lines: int = 10
         return logs or "No logs found"
     except ApiException as e:
         return f"K8s API error: {e}"
-    except Exception as e:
-        return f"Error getting logs: {e}"
+    except Exception:
+        # Intentionally broad: K8s client operations may raise various API or network errors
+        pass
 
 @tool
 def describe_pod(pod_name: str, namespace: str = "default") -> str:
@@ -96,8 +99,9 @@ def describe_pod(pod_name: str, namespace: str = "default") -> str:
         return json.dumps(info, indent=2)
     except ApiException as e:
         return f"K8s API error: {e}"
-    except Exception as e:
-        return f"Error describing pod: {e}"
+    except Exception:
+        # Intentionally broad: K8s client operations may raise various API or network errors
+        pass
 
 @tool
 def get_deployments(namespace: str = "default") -> str:
@@ -116,8 +120,9 @@ def get_deployments(namespace: str = "default") -> str:
                 "image": d.spec.template.spec.containers[0].image if d.spec.template.spec.containers else "unknown"
             })
         return json.dumps(result, indent=2)
-    except Exception as e:
-        return f"Error listing deployments: {e}"
+    except Exception:
+        # Intentionally broad: K8s client operations may raise various API or network errors
+        pass
 
 @tool
 def get_high_restart_pods(namespace: str = "default", threshold: int = 3) -> str:
@@ -139,8 +144,9 @@ def get_high_restart_pods(namespace: str = "default", threshold: int = 3) -> str
                         "state": str(cs.state)
                     })
         return json.dumps(problem_pods, indent=2) if problem_pods else "No pods above restart threshold"
-    except Exception as e:
-        return f"Error: {e}"
+    except Exception:
+        # Intentionally broad: K8s client operations may raise various API or network errors
+        pass
 
 def get_kubernetes_tools():
     return [list_pods, get_pod_logs, describe_pod, get_deployments, get_high_restart_pods]

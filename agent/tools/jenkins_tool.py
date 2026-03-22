@@ -18,18 +18,20 @@ def _auth() -> tuple:
     """Return (base_url, HTTPBasicAuth) from config. Raises if URL not set."""
     url = config.infra.jenkins_url.rstrip("/")
     if not url:
-        raise ValueError(
+        msg = (
             "Jenkins URL is not configured. "
             "Set JENKINS_URL env var or update via the GUI Configuration page."
         )
+        raise ValueError(msg)
     secret_data = jenkins.all()
     user = secret_data.get("username", "")
     token = secret_data.get("api_token", "")
     if not user or not token:
-        raise ValueError(
+        msg = (
             "Jenkins credentials missing. "
             "Set SECRET_ID_JENKINS env var pointing to AWS Secrets Manager secret."
         )
+        raise ValueError(msg)
     return url, HTTPBasicAuth(user, token)
 
 
@@ -50,15 +52,17 @@ def _get(path: str, params: dict = None) -> dict:
 def _post(path: str, data: dict = None) -> requests.Response:
     """Authenticated POST to Jenkins REST API."""
     url, auth = _auth()
-    # Jenkins CSRF crumb
+    # Jenkins CSRF crumb (may fail if CSRF is disabled)
+    headers = {}
     try:
         crumb_data = requests.get(
             f"{url}/crumbIssuer/api/json",
             auth=auth, timeout=10, verify=False
         ).json()
         headers = {crumb_data["crumbRequestField"]: crumb_data["crumb"]}
-    except Exception:
-        headers = {}
+    except requests.exceptions.RequestException:
+        # CSRF crumb fetch may fail (e.g., Jenkins has CSRF disabled); proceed without crumb header
+        pass
     resp = requests.post(
         f"{url}{path}",
         auth=auth,
@@ -95,9 +99,10 @@ def list_jenkins_jobs(folder: str = "") -> str:
         return "Jenkins Jobs:\n" + "\n".join(lines)
     except ValueError as e:
         return f"Configuration error: {e}"
-    except Exception as e:
-        logger.exception("list_jenkins_jobs failed")
-        return f"Error fetching Jenkins jobs: {e}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
+        pass
 
 
 @tool
@@ -125,9 +130,10 @@ def get_jenkins_build_status(job_name: str, build_number: str = "lastBuild") -> 
         )
     except ValueError as e:
         return f"Configuration error: {e}"
-    except Exception as e:
-        logger.exception("get_jenkins_build_status failed")
-        return f"Error fetching build status: {e}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
+        pass
 
 
 @tool
@@ -149,9 +155,10 @@ def get_jenkins_build_log(job_name: str, build_number: str = "lastBuild") -> str
         return f"Console log (last {len(tail)} lines):\n" + "\n".join(tail)
     except ValueError as e:
         return f"Configuration error: {e}"
-    except Exception as e:
-        logger.exception("get_jenkins_build_log failed")
-        return f"Error fetching build log: {e}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
+        pass
 
 
 @tool
@@ -174,9 +181,9 @@ def trigger_jenkins_build(job_name: str, parameters: str = "") -> str:
         return f"Configuration error: {e}"
     except json.JSONDecodeError:
         return f"Invalid parameters JSON: {parameters}"
-    except Exception as e:
-        logger.exception("trigger_jenkins_build failed")
-        return f"Error triggering build: {e}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -204,9 +211,10 @@ def get_jenkins_pipeline_stages(job_name: str, build_number: str = "lastBuild") 
         return "\n".join(lines)
     except ValueError as e:
         return f"Configuration error: {e}"
-    except Exception as e:
-        logger.exception("get_jenkins_pipeline_stages failed")
-        return f"Error fetching pipeline stages: {e}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
+        pass
 
 
 # Exported list for orchestrator

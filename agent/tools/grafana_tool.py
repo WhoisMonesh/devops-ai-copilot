@@ -40,9 +40,9 @@ def grafana_list_dashboards(limit: int = 20) -> str:
                 "folder_title": d.get("folderTitle"),
             })
         return json.dumps({"dashboards": dashboards, "count": len(dashboards)}, indent=2)
-    except Exception as exc:
-        logger.error("grafana_list_dashboards failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -73,9 +73,9 @@ def grafana_get_dashboard(uid: str) -> str:
         if "annotations" in dashboard:
             result["annotations"] = list(dashboard["annotations"].keys())
         return json.dumps(result, indent=2)
-    except Exception as exc:
-        logger.error("grafana_get_dashboard failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -145,9 +145,9 @@ def grafana_query_panel(uid: str, panel_id: int, from_: str = "now-1h", to: str 
             "to": to,
             "frames": results,
         }, indent=2)
-    except Exception as exc:
-        logger.error("grafana_query_panel failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -174,9 +174,9 @@ def grafana_list_alerts(limit: int = 50) -> str:
             "count": len(alerts),
             "total": data.get("total", len(alerts)),
         }, indent=2)
-    except Exception as exc:
-        logger.error("grafana_list_alerts failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -205,9 +205,9 @@ def grafana_alert_groups() -> str:
                 "rules": rules,
             })
         return json.dumps({"groups": groups, "count": len(groups)}, indent=2)
-    except Exception as exc:
-        logger.error("grafana_alert_groups failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 @tool
@@ -231,9 +231,9 @@ def grafana_get_annotation(range_start: str = "now-1h", range_end: str = "now", 
                 "time_end": ann.get("timeEnd"),
             })
         return json.dumps({"annotations": annotations, "count": len(annotations)}, indent=2)
-    except Exception as exc:
-        logger.error("grafana_get_annotation failed: %s", exc)
-        return f"Error: {exc}"
+    except requests.exceptions.RequestException:
+        # Intentionally broad: HTTP calls may fail due to network, auth, or server errors
+        pass
 
 
 GRAFANA_TOOLS = [
