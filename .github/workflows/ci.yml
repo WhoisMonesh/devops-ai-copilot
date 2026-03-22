@@ -102,7 +102,9 @@ jobs:
           platforms: ${{ matrix.platforms }}
           build-args: ${{ matrix.build_args }}
       - name: Save image tag
-        run: echo "${{ steps.meta.outputs.tags }}" > build-meta/${{ matrix.image }}-tag.txt
+        run: |
+          mkdir -p build-meta
+          echo "${{ steps.meta.outputs.tags }}" > build-meta/${{ matrix.image }}-tag.txt
       - name: Upload build meta
         uses: actions/upload-artifact@v4
         with:
