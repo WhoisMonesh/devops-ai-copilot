@@ -24,18 +24,20 @@ def _session() -> tuple:
     """
     url = config.infra.artifactory_url.rstrip("/")
     if not url:
-        raise ValueError(
+        msg = (
             "Artifactory URL is not configured. "
             "Set ARTIFACTORY_URL env var or update via the GUI Configuration page."
         )
+        raise ValueError(msg)
     secret_data = artifactory.all()
     api_key = secret_data.get("api_key", "")
     username = secret_data.get("username", "")
     if not api_key and not username:
-        raise ValueError(
+        msg = (
             "Artifactory credentials missing. "
             "Set SECRET_ID_ARTIFACTORY env var pointing to AWS Secrets Manager secret."
         )
+        raise ValueError(msg)
     session = requests.Session()
     session.verify = os.getenv("ARTIFACTORY_VERIFY_SSL", "false").lower() == "true"
     if api_key:

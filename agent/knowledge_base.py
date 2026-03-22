@@ -13,7 +13,6 @@
 #   configs     - Config snippets, manifest files, schema docs
 #   sops        - Standard Operating Procedures
 #   kb          - General knowledge base articles
-from __future__ import annotations
 
 import json
 import logging
@@ -53,7 +52,7 @@ def _get_chroma_client() -> Any:
                 except ImportError:
                     logger.warning("ChromaDB not installed. KB search will use TF-IDF fallback.")
                     _chroma_client = None
-                except Exception as exc:
+                except OSError as exc:
                     logger.error("Failed to init ChromaDB: %s", exc)
                     _chroma_client = None
     return _chroma_client
@@ -72,7 +71,7 @@ def _embed_texts(texts: list[str]) -> list[list[float]]:
             resp.raise_for_status()
             embeddings.append(resp.json().get("embedding", []))
         return embeddings
-    except Exception as exc:
+    except requests.exceptions.RequestException as exc:
         logger.warning("Ollama embedding failed, using TF-IDF fallback: %s", exc)
         return _local_embed_fallback(texts)
 
@@ -131,7 +130,8 @@ def _get_or_create_collection(name: str) -> Any:
     """Get or create a ChromaDB collection."""
     client = _get_chroma_client()
     if client is None:
-        raise RuntimeError("ChromaDB not available")
+        msg = "ChromaDB not available"
+        raise RuntimeError(msg)
     return client.get_or_create_collection(
         name=name,
         metadata={"description": f"DevOps AI knowledge base – {name}"},
@@ -177,7 +177,7 @@ def search_entries(
     for coll_name in collections_to_search:
         try:
             coll = _get_or_create_collection(coll_name)
-        except Exception:
+        except OSError:
             continue
 
         results = coll.query(
@@ -231,8 +231,8 @@ def get_entry(entry_id: str, collection: str) -> Optional[dict]:
             "created_at": meta.get("created_at", ""),
             "updated_at": meta.get("updated_at", ""),
         }
-    except Exception as exc:
-        logger.error("get_entry(%s, %s) failed: %s", entry_id, collection, exc)
+    except Exception:
+        logger.error("get_entry(%s, %s) failed", entry_id, collection)
         return None
 
 
@@ -260,8 +260,8 @@ def update_entry(
         coll.update(ids=[entry_id], **updates)
         logger.info("Updated KB entry %s in %s", entry_id, collection)
         return True
-    except Exception as exc:
-        logger.error("update_entry(%s) failed: %s", entry_id, exc)
+    except Exception:
+        logger.error("update_entry(%s) failed", entry_id)
         return False
 
 
@@ -272,8 +272,8 @@ def delete_entry(entry_id: str, collection: str) -> bool:
         coll.delete(ids=[entry_id])
         logger.info("Deleted KB entry %s from %s", entry_id, collection)
         return True
-    except Exception as exc:
-        logger.error("delete_entry(%s) failed: %s", exc)
+    except Exception:
+        logger.error("delete_entry(%s) failed", entry_id)
         return False
 
 
@@ -298,8 +298,8 @@ def list_entries(collection: str, limit: int = 50) -> list[dict]:
             })
         entries.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
         return entries[:limit]
-    except Exception as exc:
-        logger.error("list_entries(%s) failed: %s", collection, exc)
+    except Exception:
+        logger.error("list_entries(%s) failed", collection)
         return []
 
 

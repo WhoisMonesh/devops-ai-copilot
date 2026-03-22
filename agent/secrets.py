@@ -14,7 +14,6 @@
 #   devops-copilot/nginx        -> {"url":"...","access_log":"...","error_log":"..."}
 #   devops-copilot/llm/vertexai -> {"project":"...","location":"...","credentials_json":"{...}"}
 #   devops-copilot/llm/bedrock  -> {"region":"...","model_id":"..."}
-from __future__ import annotations
 
 import json
 import logging
@@ -40,7 +39,8 @@ def _boto_client():
     try:
         import boto3
     except ImportError:
-        raise ImportError("boto3 is required. Add it to requirements.txt.")
+        msg = "boto3 is required. Add it to requirements.txt."
+        raise ImportError(msg) from None
     kwargs: dict = {"region_name": AWS_REGION}
     # Only pass explicit creds if set (local dev / non-IRSA)
     key_id = os.getenv("AWS_ACCESS_KEY_ID", "")
@@ -70,7 +70,8 @@ def get_secret(secret_id: str, force_refresh: bool = False) -> Dict[str, Any]:
         RuntimeError - if AWS call fails
     """
     if not secret_id:
-        raise ValueError("secret_id must not be empty.")
+        msg = "secret_id must not be empty."
+        raise ValueError(msg)
     now = time.monotonic()
     # Return from cache if still fresh
     if not force_refresh and secret_id in _cache:
@@ -91,9 +92,14 @@ def get_secret(secret_id: str, force_refresh: bool = False) -> Dict[str, Any]:
         _cache[secret_id] = (now, data)
         logger.info("[Secrets] successfully fetched secret")
         return data
-    except Exception as e:
-        logger.error("[Secrets] failed to fetch secret: %s", e)
-        raise RuntimeError(f"Failed to fetch secret '{secret_id}': {e}") from e
+    except Exception:
+        # Catches boto3/AWS errors from get_secret_value
+        logger.error("[Secrets] failed to fetch secret")
+        raise RuntimeError(f"Failed to fetch secret '{secret_id}'") from None
+    except json.JSONDecodeError:
+        # JSON parse failure on secret value
+        logger.error("[Secrets] failed to parse secret JSON")
+        raise RuntimeError(f"Failed to fetch secret '{secret_id}'") from None
 
 
 def get_secret_value(secret_id: str, key: str, default: str = "") -> str:
@@ -107,7 +113,8 @@ def get_secret_value(secret_id: str, key: str, default: str = "") -> str:
     """
     try:
         return str(get_secret(secret_id).get(key, default))
-    except Exception:
+    except RuntimeError:
+        # get_secret raises RuntimeError on boto3/ClientError or JSON decode failure
         return default
 
 
@@ -163,7 +170,8 @@ class _ServiceSecrets:
             return {}
         try:
             return get_secret(sid)
-        except Exception:
+        except RuntimeError:
+            # get_secret raises RuntimeError on boto3/ClientError or JSON decode failure
             return {}
 
     def is_configured(self) -> bool:

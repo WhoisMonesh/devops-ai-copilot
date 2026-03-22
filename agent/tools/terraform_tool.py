@@ -25,8 +25,9 @@ def _run_terraform(args: list, cwd: str = TERRAFORM_PATH) -> tuple[str, str, int
         return result.stdout, result.stderr, result.returncode
     except FileNotFoundError:
         return "", "Terraform not found. Is it installed and in PATH?", 1
-    except Exception as e:
-        return "", str(e), 1
+    except Exception:
+        # Intentionally broad: OSError, subprocess errors
+        return "", "terraform command failed", 1
 
 
 @tool
@@ -37,9 +38,9 @@ def terraform_validate() -> str:
         if code != 0:
             return f"Terraform validation failed:\n{stderr or stdout}"
         return f"Terraform validation passed:\n{stdout}"
-    except Exception as e:
-        logger.exception("terraform_validate failed")
-        return f"Error validating Terraform: {e}"
+    except Exception:
+        # Intentionally broad: subprocess errors
+        return "Error validating Terraform"
 
 
 @tool
@@ -62,9 +63,9 @@ def terraform_plan(destroy: bool = False) -> str:
         summary = "\n".join(summary_lines[-10:]) if summary_lines else stdout[-500:]
 
         return f"Terraform Plan:\n{summary}"
-    except Exception as e:
-        logger.exception("terraform_plan failed")
-        return f"Error generating Terraform plan: {e}"
+    except Exception:
+        # Intentionally broad: subprocess errors
+        return "Error generating Terraform plan"
 
 
 @tool
@@ -83,9 +84,9 @@ def terraform_apply(auto_approve: bool = False) -> str:
             return f"Terraform apply failed:\n{stderr or stdout}"
 
         return f"Terraform apply succeeded:\n{stdout[-1000:]}"
-    except Exception as e:
-        logger.exception("terraform_apply failed")
-        return f"Error applying Terraform: {e}"
+    except Exception:
+        # Intentionally broad: subprocess errors
+        return "Error applying Terraform"
 
 
 @tool
@@ -103,9 +104,9 @@ def terraform_destroy(auto_approve: bool = False) -> str:
             return f"Terraform destroy failed:\n{stderr or stdout}"
 
         return f"Terraform destroy succeeded:\n{stdout[-1000:]}"
-    except Exception as e:
-        logger.exception("terraform_destroy failed")
-        return f"Error destroying Terraform resources: {e}"
+    except Exception:
+        # Intentionally broad: subprocess errors
+        return "Error destroying Terraform resources"
 
 
 @tool
@@ -127,9 +128,9 @@ def terraform_state_list(resource: str = "") -> str:
 
         lines = stdout.strip().split("\n")
         return f"Terraform State Resources ({len(lines)}):\n" + "\n".join(f"  {r}" for r in lines)
-    except Exception as e:
-        logger.exception("terraform_state_list failed")
-        return f"Error listing Terraform state: {e}"
+    except Exception:
+        # Intentionally broad: subprocess errors
+        return "Error listing Terraform state"
 
 
 @tool
@@ -144,9 +145,9 @@ def terraform_output() -> str:
             return "No Terraform outputs defined."
 
         return f"Terraform Outputs:\n{stdout}"
-    except Exception as e:
-        logger.exception("terraform_output failed")
-        return f"Error getting Terraform output: {e}"
+    except Exception:
+        # Intentionally broad: subprocess errors
+        return "Error getting Terraform output"
 
 
 @tool
@@ -158,9 +159,9 @@ def terraform_show() -> str:
             return f"Terraform show failed:\n{stderr or stdout}"
 
         return f"Terraform State (JSON):\n{stdout[-2000:]}"
-    except Exception as e:
-        logger.exception("terraform_show failed")
-        return f"Error showing Terraform state: {e}"
+    except Exception:
+        # Intentionally broad: subprocess errors
+        return "Error showing Terraform state"
 
 
 TERRAFORM_TOOLS = [

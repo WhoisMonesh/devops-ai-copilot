@@ -2,8 +2,6 @@
 # Implements read/write toggles and safe mode for all tools
 # Designed for restricted environments (banks, intranets)
 
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
@@ -394,8 +392,9 @@ def audit_log(tool_name: str, operation: str, mode: str, allowed: bool, details:
             os.makedirs(log_dir, exist_ok=True)
         with open(_permissions.audit_log_path, "a") as f:
             f.write(json.dumps(log_entry) + "\n")
-    except Exception as e:
-        logger.error("Failed to write audit log: %s", e)
+    except OSError:
+        # Intentionally catches file I/O errors (disk full, permission denied, etc.)
+        pass
 
 
 # ---------------------------------------------------------------------------

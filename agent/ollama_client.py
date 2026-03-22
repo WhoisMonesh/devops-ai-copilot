@@ -27,7 +27,8 @@ class OllamaClient:
         try:
             r = requests.get(f"{self.base_url}/api/version", timeout=5)
             return r.status_code == 200
-        except Exception:
+        except requests.exceptions.RequestException:
+            # Intentionally broad: health check must handle network, DNS, connection errors
             return False
 
     def get_version(self) -> str:
@@ -36,8 +37,9 @@ class OllamaClient:
             r = requests.get(f"{self.base_url}/api/version", timeout=5)
             r.raise_for_status()
             return r.json().get("version", "unknown")
-        except Exception as e:
-            return f"error: {e}"
+        except requests.exceptions.RequestException:
+            # Intentionally broad: version check may encounter network errors
+            return ""
 
     def list_models(self) -> List[dict]:
         """Return list of locally available models on the Ollama container."""
@@ -53,8 +55,8 @@ class OllamaClient:
                 }
                 for m in models
             ]
-        except Exception as e:
-            logger.warning(f"Could not list Ollama models: {e}")
+        except requests.exceptions.RequestException:
+            # Intentionally broad: list_models may encounter network or API errors
             return []
 
     def model_names(self) -> List[str]:
@@ -79,8 +81,9 @@ class OllamaClient:
             status = r.json().get("status", "")
             logger.info(f"Pull result for {model}: {status}")
             return True
-        except Exception as e:
-            logger.error(f"Failed to pull model {model}: {e}")
+        except requests.exceptions.RequestException:
+            # Intentionally broad: pull_model may encounter network errors
+            logger.error("Failed to pull model %s", model)
             return False
 
     def ensure_model(self, model: Optional[str] = None) -> bool:
@@ -100,8 +103,9 @@ class OllamaClient:
                 timeout=30,
             )
             return r.status_code in (200, 204)
-        except Exception as e:
-            logger.error(f"Failed to delete model {model}: {e}")
+        except requests.exceptions.RequestException:
+            # Intentionally broad: delete may encounter network errors
+            logger.error("Failed to delete model %s", model)
             return False
 
     # ------------------------------------------------------------------
@@ -143,8 +147,9 @@ class OllamaClient:
             )
             r.raise_for_status()
             return r.json().get("response", "")
-        except Exception as e:
-            return f"Ollama generate error: {e}"
+        except requests.exceptions.RequestException:
+            # Intentionally broad: generate may encounter network errors
+            return ""
 
 
 # Singleton

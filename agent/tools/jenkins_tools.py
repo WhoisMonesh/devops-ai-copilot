@@ -1,8 +1,6 @@
 # agent/tools/jenkins_tools.py
 # LangChain tools for Jenkins CI/CD operations
 
-from __future__ import annotations
-
 import logging
 from typing import Optional
 

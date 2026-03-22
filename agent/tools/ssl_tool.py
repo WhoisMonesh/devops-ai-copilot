@@ -46,8 +46,9 @@ def _fetch_cert(host: str, port: int = 443, timeout: int = 10) -> Optional[dict]
                     "version": x509.get_version(),
                     "signature_algorithm": x509.get_signature_algorithm().decode(),
                 }
-    except Exception as e:
-        return {"error": str(e)}
+    except (ssl.SSLError, OSError):
+        # SSL handshake/verify errors or socket connection errors
+        return {"error": "SSL/connection error"}
 
 
 def _days_until_expiry(not_after: datetime) -> int:
@@ -92,9 +93,9 @@ def ssl_check_host(host: str, port: int = 443) -> str:
             lines.append("  STATUS: OK")
 
         return "\n".join(lines)
-    except Exception as e:
-        logger.exception("ssl_check_host failed")
-        return f"Error checking SSL cert: {e}"
+    except (ssl.SSLError, OSError):
+        # SSL errors from socket operations
+        return "Error checking SSL cert"
 
 
 @tool
@@ -127,9 +128,8 @@ def ssl_batch_check(hosts: str, port: int = 443) -> str:
                 lines.append(f"  {host}: {status} ({days_left}d, expires {expiry})")
 
         return "\n".join(lines)
-    except Exception as e:
-        logger.exception("ssl_batch_check failed")
-        return f"Error in batch SSL check: {e}"
+    except (ssl.SSLError, OSError):
+        return "Error in batch SSL check"
 
 
 @tool
@@ -155,12 +155,11 @@ def ssl_get_cert_chain(host: str, port: int = 443) -> str:
                 f"  Issuer CN: {issuer_cn}",
                 f"  Version: {x509.get_version() + 1}",
                 f"  Serial: {hex(x509.get_serial_number())}",
-                f"  Valid: {datetime.strptime(x509.get_notBefore().decode('ascii'), '%Y%m%d%H%M%SZ').strftime('%Y-%m-%d')} to {datetime.strptime(x509.get_notAfter().decode('ascii'), '%Y%m%d%H%M%SZ').strftime('%Y-%m-%d')}",
+                f"  Valid: {datetime.strptime(x509.get_notBefore().decode('ascii'), '%Y%m%d%H%M%SZ').strftime('%Y-%m-%d')} to {datetime.strptime(x509.get_notAfter().decode('ascii'), '%Y%m%d%H%M%SZ').strftime('%Y%m-%d')}",
             ]
             return "\n".join(lines)
-    except Exception as e:
-        logger.exception("ssl_get_cert_chain failed")
-        return f"Error getting cert chain: {e}"
+    except (ssl.SSLError, OSError):
+        return "Error getting cert chain"
 
 
 @tool
@@ -182,9 +181,9 @@ def dns_lookup(hostname: str, record_type: str = "A") -> str:
             lines.append(f"  -> {rdata}")
 
         return "\n".join(lines)
-    except Exception as e:
-        logger.exception("dns_lookup failed")
-        return f"DNS lookup failed for {hostname}: {e}"
+    except Exception:
+        # Intentionally broad: dns.resolver raises NXDOMAIN, NoAnswer, Timeout, NoNameservers
+        return f"DNS lookup failed for {hostname}"
 
 
 @tool
@@ -224,9 +223,8 @@ def http_headers_check(url: str) -> str:
             lines.append("    (none found)")
 
         return "\n".join(lines)
-    except Exception as e:
-        logger.exception("http_headers_check failed")
-        return f"Error checking HTTP headers: {e}"
+    except requests.exceptions.RequestException:
+        return "Error checking HTTP headers"
 
 
 SSL_TOOLS = [

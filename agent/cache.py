@@ -1,5 +1,4 @@
 # agent/cache.py - Query and tool result caching layer
-from __future__ import annotations
 
 import hashlib
 import json

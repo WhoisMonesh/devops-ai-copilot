@@ -21,10 +21,11 @@ def _es_client() -> Elasticsearch:
     """Build Elasticsearch client from config. Raises if URL not set."""
     es_url = config.infra.elasticsearch_url.strip()
     if not es_url:
-        raise ValueError(
+        msg = (
             "Elasticsearch URL is not configured. "
             "Set ELASTICSEARCH_URL env var or update via the GUI Configuration page."
         )
+        raise ValueError(msg)
     # Try secrets first (from AWS Secrets Manager)
     secret_data = kibana.all()
     user = secret_data.get("username", "") or secret_data.get("elasticsearch_username", "")
@@ -38,10 +39,11 @@ def _kibana_get(path: str, params: dict = None) -> dict:
     """Authenticated GET to Kibana REST API."""
     base = config.infra.kibana_url.rstrip("/")
     if not base:
-        raise ValueError(
+        msg = (
             "Kibana URL is not configured. "
             "Set KIBANA_URL env var or update via the GUI Configuration page."
         )
+        raise ValueError(msg)
     secret_data = kibana.all()
     user = secret_data.get("username", "")
     password = secret_data.get("password", "")
@@ -63,7 +65,8 @@ def _kibana_post(path: str, body: dict = None) -> dict:
     """Authenticated POST to Kibana REST API."""
     base = config.infra.kibana_url.rstrip("/")
     if not base:
-        raise ValueError("Kibana URL is not configured.")
+        msg = "Kibana URL is not configured."
+        raise ValueError(msg)
     secret_data = kibana.all()
     user = secret_data.get("username", "")
     password = secret_data.get("password", "")

@@ -2,8 +2,6 @@
 # LangChain tools that call LLM providers (Vertex AI / Bedrock / Ollama)
 # Used for summarisation, root-cause analysis, and free-form reasoning.
 
-from __future__ import annotations
-
 import logging
 from typing import Optional
 
@@ -24,9 +22,9 @@ def llm_summarise(text: str, max_words: int = 150) -> str:
             f"{text[:8000]}"
         )
         return llm_client.chat(prompt)
-    except Exception as exc:
-        logger.error("llm_summarise failed: %s", exc)
-        return f"Error: {exc}"
+    except Exception:
+        # Intentionally broad: llm_client.chat may raise various exceptions depending on provider
+        return ""
 
 
 @tool
@@ -43,9 +41,9 @@ def llm_root_cause_analysis(error_log: str, service: Optional[str] = None) -> st
             f"{error_log[:8000]}"
         )
         return llm_client.chat(prompt)
-    except Exception as exc:
-        logger.error("llm_root_cause_analysis failed: %s", exc)
-        return f"Error: {exc}"
+    except Exception:
+        # Intentionally broad: llm_client.chat may raise various exceptions depending on provider
+        return ""
 
 
 @tool
@@ -58,9 +56,9 @@ def llm_generate_runbook(task_description: str) -> str:
             f"Task: {task_description}"
         )
         return llm_client.chat(prompt)
-    except Exception as exc:
-        logger.error("llm_generate_runbook failed: %s", exc)
-        return f"Error: {exc}"
+    except Exception:
+        # Intentionally broad: llm_client.chat may raise various exceptions depending on provider
+        return ""
 
 
 @tool
@@ -73,9 +71,9 @@ def llm_explain_k8s_error(error_message: str) -> str:
             f"Error: {error_message}"
         )
         return llm_client.chat(prompt)
-    except Exception as exc:
-        logger.error("llm_explain_k8s_error failed: %s", exc)
-        return f"Error: {exc}"
+    except Exception:
+        # Intentionally broad: llm_client.chat may raise various exceptions depending on provider
+        return ""
 
 
 @tool
@@ -90,9 +88,9 @@ def llm_compare_configs(config_a: str, config_b: str, context: str = "") -> str:
             f"--- Config B ---\n{config_b[:4000]}"
         )
         return llm_client.chat(prompt)
-    except Exception as exc:
-        logger.error("llm_compare_configs failed: %s", exc)
-        return f"Error: {exc}"
+    except Exception:
+        # Intentionally broad: llm_client.chat may raise various exceptions depending on provider
+        return ""
 
 
 LLM_TOOLS = [

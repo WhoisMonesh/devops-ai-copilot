@@ -27,8 +27,8 @@ def _read_last_lines(filepath: str, n: int = 2000) -> list:
         return lines[-n:]
     except FileNotFoundError:
         return []
-    except Exception as e:
-        logger.error(f"Error reading {filepath}: {e}")
+    except OSError:
+        # Intentionally catches file read errors (permission denied, I/O errors, etc.)
         return []
 
 @tool
@@ -53,7 +53,8 @@ def get_nginx_5xx_errors(last_minutes: int = 30) -> str:
                             "status": m.group("status"),
                             "size": m.group("size")
                         })
-                except Exception:
+                except ValueError:
+                    # Skip lines with unparseable timestamps
                     pass
         status_counts = Counter(e["status"] for e in errors)
         return json.dumps({
@@ -61,8 +62,9 @@ def get_nginx_5xx_errors(last_minutes: int = 30) -> str:
             "by_status": dict(status_counts),
             "errors": errors[:50]
         }, indent=2)
-    except Exception as e:
-        return f"Nginx error: {e}"
+    except OSError:
+        # Intentionally catches file read errors
+        return "Nginx error: unable to read access log"
 
 @tool
 def get_nginx_top_endpoints(last_minutes: int = 60, top_n: int = 10) -> str:
@@ -79,7 +81,8 @@ def get_nginx_top_endpoints(last_minutes: int = 60, top_n: int = 10) -> str:
                     ts = datetime.strptime(m.group("time").split()[0], "%d/%b/%Y:%H:%M:%S")
                     if ts >= cutoff:
                         paths.append(m.group("path").split("?")[0])
-                except Exception:
+                except ValueError:
+                    # Skip lines with unparseable timestamps
                     pass
         counts = Counter(paths).most_common(top_n)
         return json.dumps({
@@ -87,8 +90,9 @@ def get_nginx_top_endpoints(last_minutes: int = 60, top_n: int = 10) -> str:
             "total_requests": len(paths),
             "top_endpoints": [{"path": p, "count": c} for p, c in counts]
         }, indent=2)
-    except Exception as e:
-        return f"Nginx error: {e}"
+    except OSError:
+        # Intentionally catches file read errors
+        return "Nginx error: unable to read access log"
 
 @tool
 def get_nginx_status_summary(last_minutes: int = 60) -> str:
@@ -107,7 +111,8 @@ def get_nginx_status_summary(last_minutes: int = 60) -> str:
                     if ts >= cutoff:
                         statuses.append(m.group("status"))
                         ips.append(m.group("ip"))
-                except Exception:
+                except ValueError:
+                    # Skip lines with unparseable timestamps
                     pass
         status_dist = Counter(statuses)
         top_ips = Counter(ips).most_common(5)
@@ -122,8 +127,9 @@ def get_nginx_status_summary(last_minutes: int = 60) -> str:
             "status_distribution": dict(status_dist),
             "top_client_ips": [{"ip": ip, "requests": c} for ip, c in top_ips]
         }, indent=2)
-    except Exception as e:
-        return f"Nginx error: {e}"
+    except OSError:
+        # Intentionally catches file read errors
+        return "Nginx error: unable to read access log"
 
 @tool
 def get_nginx_error_log(last_lines: int = 50) -> str:
@@ -134,8 +140,9 @@ def get_nginx_error_log(last_lines: int = 50) -> str:
         if not lines:
             return "No nginx error log found or log is empty"
         return "".join(lines)
-    except Exception as e:
-        return f"Nginx error: {e}"
+    except OSError:
+        # Intentionally catches file read errors
+        return "Nginx error: unable to read error log"
 
 def get_nginx_tools():
     return [get_nginx_5xx_errors, get_nginx_top_endpoints, get_nginx_status_summary, get_nginx_error_log]

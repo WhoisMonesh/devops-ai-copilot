@@ -1,6 +1,5 @@
 # agent/tools/knowledge_base_tool.py - Knowledge Base RAG tools
 # Exposes semantic search and KB CRUD to the DevOps AI agent via LangChain tools.
-from __future__ import annotations
 
 import logging
 import uuid

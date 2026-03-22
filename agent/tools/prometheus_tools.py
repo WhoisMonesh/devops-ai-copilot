@@ -1,8 +1,6 @@
 # agent/tools/prometheus_tools.py
 # LangChain tools for Prometheus monitoring queries
 
-from __future__ import annotations
-
 import json
 import logging
 

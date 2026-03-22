@@ -6,7 +6,6 @@
 #   - TLS-aware request context
 #
 # For intranet/enterprise use with identity providers (Okta, Azure AD, Keycloak).
-from __future__ import annotations
 
 import json
 import logging
@@ -56,7 +55,7 @@ def _fetch_jwks() -> dict:
         _jwks_cache_at = now
         logger.info("JWKS cache refreshed from %s", _jwks_url)
         return _jwks_cache
-    except Exception as exc:
+    except requests.exceptions.RequestException as exc:
         logger.warning("Failed to fetch JWKS from %s: %s", _jwks_url, exc)
         return _jwks_cache or {}
 
@@ -74,7 +73,7 @@ def _get_signing_key(token: str) -> Optional[str]:
 
     try:
         unverified_header = jwt.get_unverified_header(token)
-    except Exception:
+    except jwt.exceptions.DecodeError:
         return None
 
     kid = unverified_header.get("kid")

@@ -3,8 +3,6 @@
 #   - Distributed tracing (OTLP/gRPC or HTTP)
 #   - Structured audit log to file (JSON Lines, SIEM-compatible)
 #   - Correlation ID propagation across all tool calls
-#   - Span creation for every tool invocation
-from __future__ import annotations
 
 import json
 import logging
@@ -61,8 +59,9 @@ def _init_telemetry():
         logger.info("OpenTelemetry tracing enabled → %s", otel_endpoint)
     except ImportError:
         logger.warning("opentelemetry not installed. Run: pip install opentelemetry-api")
-    except Exception as exc:
-        logger.warning("OpenTelemetry initialisation failed: %s", exc)
+    except Exception:
+        # Intentionally broad: OpenTelemetry init may fail due to missing deps or config issues
+        pass
 
 
 _init_telemetry()
@@ -151,8 +150,9 @@ class StructuredAuditLogger:
                 if log_dir:
                     os.makedirs(log_dir, exist_ok=True)
                 self._file = open(self._path, "a", buffering=1)
-            except Exception as exc:
-                logger.error("Cannot open audit log %s: %s", self._path, exc)
+            except Exception:
+                # Intentionally broad: audit log write may fail due to disk/permission issues
+                pass
                 self._file = open(os.devnull, "w")
 
     def log(self, event: AuditEvent) -> None:

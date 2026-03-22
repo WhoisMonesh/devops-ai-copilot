@@ -1,5 +1,4 @@
 # agent/tools/grafana_tool.py - Grafana dashboard and alerting integration
-from __future__ import annotations
 
 import json
 import logging

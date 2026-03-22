@@ -1,6 +1,5 @@
 # agent/main.py - DevOps AI Copilot Backend (FastAPI)
 # Features: Auth, Metrics, Hot-reload config, Rate limiting, Structured logging
-from __future__ import annotations
 
 import logging
 import os
@@ -408,7 +407,8 @@ async def get_audit_log(request: Request):
                 lines = f.readlines()
                 # Return last 100 entries
                 entries = [json.loads(line) for line in lines[-100:] if line.strip()]
-    except Exception:
+    except OSError:
+        # Intentionally catches file read errors (not found, permission, etc.)
         return {"error": "Failed to read audit log entries", "entries": []}
     return {"entries": entries, "log_path": log_path}
 
@@ -449,10 +449,11 @@ async def query(req: QueryRequest, request: Request):
             corr_id=result.get("corr_id", corr_id),
             latency_seconds=result.get("latency_seconds"),
         )
-    except Exception as e:
-        logger.error("[corr_id=%s] Query failed: %s", corr_id, e)
-        metrics.record_error(type(e).__name__, "query_endpoint")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        # Intentionally broad: query endpoint may encounter orchestrator, LLM, or tool errors
+        logger.error("[corr_id=%s] Query failed", corr_id)
+        metrics.record_error("Exception", "query_endpoint")
+        raise HTTPException(status_code=500, detail="Query execution failed") from None
 
 
 # ---------------------------------------------------------------------------

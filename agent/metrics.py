@@ -1,5 +1,4 @@
 # agent/metrics.py - Agent self-monitoring via Prometheus metrics
-from __future__ import annotations
 
 import logging
 from threading import Lock
