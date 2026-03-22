@@ -22,6 +22,40 @@ env:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 0: Dependency & Secrets Review (runs on ALL pushes and PRs)
+  # ─────────────────────────────────────────────────────────────────────────────
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: 'high'
+          comment-summary-in-pr: on-failure
+
+  secrets-scan:
+    name: Secrets Scanning
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: TruffleHog Secrets Scanner
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base_depth: 50
+          max_depth: 100
+          no_verification: true
+          # Only fail on high/critical severity secrets
+          only_verified: false
+
+  # ─────────────────────────────────────────────────────────────────────────────
   # Stage 1: Lint & Test (runs on ALL pushes and PRs)
   # ─────────────────────────────────────────────────────────────────────────────
   lint-test:
@@ -56,6 +90,27 @@ jobs:
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 1b: Kubernetes Manifest Validation
+  # ─────────────────────────────────────────────────────────────────────────────
+  k8s-validate:
+    name: Validate Kubernetes Manifests
+    runs-on: ubuntu-latest
+    needs: lint-test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+      - name: Validate Kubernetes manifests
+        run: |
+          echo "Validating Kubernetes manifests..."
+          for f in deploy/k8s/*.yaml; do
+            echo "Checking $f..."
+            kubectl apply --dry-run=client -f "$f" 2>&1 || { echo "FAILED: $f"; exit 1; }
+          done
+          echo "All Kubernetes manifests are valid!"
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Stage 2a: Build images on PR (validation only, no push)
@@ -300,6 +355,49 @@ jobs:
             trivy-results-${{ matrix.image }}.sarif
             trivy-summary-${{ matrix.image }}.txt
           retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 4b: Generate SBOM (Software Bill of Materials)
+  # ─────────────────────────────────────────────────────────────────────────────
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: [build-all, build-ollama-mistral]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      matrix:
+        image: [agent, gui]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.DOCAI }}
+      - name: Pull Docker image
+        run: |
+          IMAGE_TAG="ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}"
+          docker pull "$IMAGE_TAG"
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          image: "ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}"
+          format: spdx-json
+          output-file: sbom-${{ matrix.image }}.spdx.json
+          annotations: |
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ github.sha }}
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.image }}
+          path: sbom-${{ matrix.image }}.spdx.json
+          retention-days: 90
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Stage 5: Publish combined security report
