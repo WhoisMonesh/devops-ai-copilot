@@ -86,9 +86,8 @@ jobs:
           images: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-${{ matrix.image }}
           tags: |
             type=ref,event=branch
-            type=sha,prefix=sha-,onmatch=replace
+            type=raw,value=sha-${{ github.sha }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
       - name: Build & push devops-ai-copilot-${{ matrix.image }}
         uses: docker/build-push-action@v7
         with:
@@ -123,7 +122,7 @@ jobs:
 
       - name: Pull Docker image
         run: |
-          IMAGE_TAG="${{ env.IMAGE_PREFIX }}/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}"
+          IMAGE_TAG="${{ env.IMAGE_PREFIX }}/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.ref == 'refs/heads/main' && github.sha || github.sha }}"
           echo "Pulling $IMAGE_TAG"
           docker pull "$IMAGE_TAG"
 
