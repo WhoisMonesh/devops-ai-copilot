@@ -80,7 +80,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=agent-cache
           cache-to: type=gha,scope=agent-cache,mode=max
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
 
   build-gui:
     name: Build GUI
@@ -115,14 +115,14 @@ jobs:
       - name: Build & push devops-ai-copilot-gui
         uses: docker/build-push-action@v7
         with:
-          context: .
-          file: gui/Dockerfile
+          context: gui/
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=gui-cache
           cache-to: type=gha,scope=gui-cache,mode=max
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
 
   build-ollama:
     name: Build Ollama
