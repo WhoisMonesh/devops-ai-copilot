@@ -134,14 +134,12 @@ jobs:
           output: trivy-results-${{ matrix.image }}.json
           severity: CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN
           vuln-type: os,library
-          limit: 100
 
       - name: Run Trivy config scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
-          scan-ref: .
           scan-type: config
+          scan-ref: .
           format: table
           output: trivy-config-${{ matrix.image }}.txt
 
