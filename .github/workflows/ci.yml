@@ -188,7 +188,7 @@ jobs:
       - name: Pull devops-ai-copilot-agent for scanning
         run: docker pull ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-agent:latest
       - name: Cache Trivy DB
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: trivy-db
           key: trivy-db-v2-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -234,7 +234,7 @@ jobs:
       - name: Pull devops-ai-copilot-gui for scanning
         run: docker pull ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-gui:latest
       - name: Cache Trivy DB
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: trivy-db
           key: trivy-db-v2-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -280,7 +280,7 @@ jobs:
       - name: Pull devops-ai-copilot-ollama for scanning
         run: docker pull ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-ollama:latest
       - name: Cache Trivy DB
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: trivy-db
           key: trivy-db-v2-${{ hashFiles('.github/workflows/ci.yml') }}
