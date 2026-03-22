@@ -58,12 +58,18 @@ jobs:
             platforms: linux/amd64,linux/arm64
             cache_scope: gui-cache
             build_args: ""
-          - image: ollama
+          - image: ollama-qwen
             dockerfile: deploy/Dockerfile.ollama
             context: .
             platforms: linux/amd64
             cache_scope: ollama-cache
             build_args: OLLAMA_MODEL=qwen2.5:3b
+          - image: ollama-mistral
+            dockerfile: deploy/Dockerfile.ollama
+            context: .
+            platforms: linux/amd64
+            cache_scope: ollama-mistral-cache
+            build_args: OLLAMA_MODEL=mistral:7b
     permissions:
       contents: read
       packages: write
@@ -108,7 +114,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
       matrix:
-        image: [agent, gui, ollama]
+        image: [agent, gui, ollama-qwen, ollama-mistral]
     permissions:
       contents: read
       packages: read

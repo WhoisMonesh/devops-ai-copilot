@@ -3,7 +3,6 @@
 
 import json
 import os
-import re
 import sys
 from datetime import datetime, timezone
 
@@ -17,7 +16,7 @@ def main():
     readme_path = "README.md"
 
     # Collect vuln counts from all images
-    images = ["agent", "gui", "ollama"]
+    images = ["agent", "gui", "ollama-qwen", "ollama-mistral"]
     per_image = {}
 
     for img in images:
@@ -38,26 +37,21 @@ def main():
     total_high = sum(per_image[img]["HIGH"] for img in images)
     scan_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
+    def make_key(img, sev):
+        key = f"{img.upper()}_{sev}"
+        return f"<!--{key}-->"
+
     # Build placeholder replacements
-    replacements = {
-        "<!--AGENT_CRITICAL-->": str(per_image["agent"]["CRITICAL"]),
-        "<!--AGENT_HIGH-->": str(per_image["agent"]["HIGH"]),
-        "<!--AGENT_MEDIUM-->": str(per_image["agent"]["MEDIUM"]),
-        "<!--AGENT_LOW-->": str(per_image["agent"]["LOW"]),
-        "<!--AGENT_TOTAL-->": str(sum(per_image["agent"].values())),
-        "<!--GUI_CRITICAL-->": str(per_image["gui"]["CRITICAL"]),
-        "<!--GUI_HIGH-->": str(per_image["gui"]["HIGH"]),
-        "<!--GUI_MEDIUM-->": str(per_image["gui"]["MEDIUM"]),
-        "<!--GUI_LOW-->": str(per_image["gui"]["LOW"]),
-        "<!--GUI_TOTAL-->": str(sum(per_image["gui"].values())),
-        "<!--OLLAMA_CRITICAL-->": str(per_image["ollama"]["CRITICAL"]),
-        "<!--OLLAMA_HIGH-->": str(per_image["ollama"]["HIGH"]),
-        "<!--OLLAMA_MEDIUM-->": str(per_image["ollama"]["MEDIUM"]),
-        "<!--OLLAMA_LOW-->": str(per_image["ollama"]["LOW"]),
-        "<!--OLLAMA_TOTAL-->": str(sum(per_image["ollama"].values())),
-        "<!--COMMIT_SHA-->": commit[:12],
-        "<!--SCAN_DATE-->": scan_date,
-    }
+    replacements = {}
+    for img in images:
+        key_prefix = img.upper()
+        replacements[f"<!--{key_prefix}_CRITICAL-->"] = str(per_image[img]["CRITICAL"])
+        replacements[f"<!--{key_prefix}_HIGH-->"] = str(per_image[img]["HIGH"])
+        replacements[f"<!--{key_prefix}_MEDIUM-->"] = str(per_image[img]["MEDIUM"])
+        replacements[f"<!--{key_prefix}_LOW-->"] = str(per_image[img]["LOW"])
+        replacements[f"<!--{key_prefix}_TOTAL-->"] = str(sum(per_image[img].values()))
+    replacements["<!--COMMIT_SHA-->"] = commit[:12]
+    replacements["<!--SCAN_DATE-->"] = scan_date
 
     # Read current README
     with open(readme_path) as f:

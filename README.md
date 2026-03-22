@@ -38,12 +38,13 @@ Ask things like:
       (logs)   (alerts)    (jobs)    (artifacts) (pods/nodes)   (metrics)
 ```
 
-**3 Containers:**
+**4 Containers:**
 | Container | Image | Port | Role |
 |-----------|-------|------|------|
 | `agent` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-agent` | 8000 | FastAPI brain — orchestrates 17 tools across your infra |
 | `gui` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-gui` | 8501 | Streamlit UI — chat, config, tools explorer, dashboard |
-| `ollama` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-ollama` | 11434 | Local AI model server (Qwen2.5 3B default) |
+| `ollama-qwen` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-ollama-qwen` | 11434 | Ollama + Qwen2.5 3B (fast, lightweight) |
+| `ollama-mistral` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-ollama-mistral` | 11434 | Ollama + Mistral 7B (higher quality, recommended) |
 
 ---
 
@@ -297,7 +298,8 @@ Infrastructure-as-Code plan, apply, and state queries.
 |-------|----------|------|--------|-----|-------|
 | `agent` | <!--AGENT_CRITICAL--> | <!--AGENT_HIGH--> | <!--AGENT_MEDIUM--> | <!--AGENT_LOW--> | <!--AGENT_TOTAL--> |
 | `gui` | <!--GUI_CRITICAL--> | <!--GUI_HIGH--> | <!--GUI_MEDIUM--> | <!--GUI_LOW--> | <!--GUI_TOTAL--> |
-| `ollama` | <!--OLLAMA_CRITICAL--> | <!--OLLAMA_HIGH--> | <!--OLLAMA_MEDIUM--> | <!--OLLAMA_LOW--> | <!--OLLAMA_TOTAL--> |
+| `ollama-qwen` | <!--OLLAMA_QWEN_CRITICAL--> | <!--OLLAMA_QWEN_HIGH--> | <!--OLLAMA_QWEN_MEDIUM--> | <!--OLLAMA_QWEN_LOW--> | <!--OLLAMA_QWEN_TOTAL--> |
+| `ollama-mistral` | <!--OLLAMA_MISTRAL_CRITICAL--> | <!--OLLAMA_MISTRAL_HIGH--> | <!--OLLAMA_MISTRAL_MEDIUM--> | <!--OLLAMA_MISTRAL_LOW--> | <!--OLLAMA_MISTRAL_TOTAL--> |
 
 **Latest scan:** `<!--COMMIT_SHA-->` <!--SCAN_DATE-->
 
