@@ -20,7 +20,7 @@ def main():
     total_critical = 0
     total_high = 0
 
-    for img in ["agent", "gui", "ollama"]:
+    for img in ["agent", "gui", "ollama-qwen", "ollama-mistral"]:
         summary_file = f"{trivy_dir}/trivy-summary-{img}.txt"
         crit = high = med = low = 0
         if os.path.exists(summary_file):
@@ -40,7 +40,7 @@ def main():
     lines.append("### Critical Vulnerabilities\n")
     lines.append("```")
 
-    for img in ["agent", "gui", "ollama"]:
+    for img in ["agent", "gui", "ollama-qwen", "ollama-mistral"]:
         json_file = f"{trivy_dir}/trivy-results-{img}.json"
         if os.path.exists(json_file):
             with open(json_file) as f:

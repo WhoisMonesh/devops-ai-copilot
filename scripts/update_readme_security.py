@@ -44,7 +44,7 @@ def main():
     # Build placeholder replacements
     replacements = {}
     for img in images:
-        key_prefix = img.upper()
+        key_prefix = img.upper().replace("-", "_")
         replacements[f"<!--{key_prefix}_CRITICAL-->"] = str(per_image[img]["CRITICAL"])
         replacements[f"<!--{key_prefix}_HIGH-->"] = str(per_image[img]["HIGH"])
         replacements[f"<!--{key_prefix}_MEDIUM-->"] = str(per_image[img]["MEDIUM"])
