@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timezone
 
 def main():
-    images = ["agent", "gui", "ollama"]
+    images = ["agent", "gui", "ollama-qwen", "ollama-mistral"]
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "repository": "WhoisMonesh/devops-ai-copilot",

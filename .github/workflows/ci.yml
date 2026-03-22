@@ -5,6 +5,11 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
+  schedule:
+    # Weekly Sunday 02:00 UTC - ollama-mistral rebuild
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+    # Manual trigger for ollama-mistral rebuild
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,6 +21,9 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 1: Lint & Test (runs on ALL pushes and PRs)
+  # ─────────────────────────────────────────────────────────────────────────────
   lint-test:
     name: Lint & Test
     runs-on: ubuntu-latest
@@ -33,13 +41,58 @@ jobs:
           pip install --upgrade pip
           pip install -r agent/requirements.txt
           pip install -r gui/requirements.txt
-          pip install ruff pytest
+          pip install ruff pytest pytest-cov
       - name: Lint all code (ruff)
         run: ruff check agent/ gui/
-      - name: Run tests
+      - name: Run full test suite
         run: |
-          PYTHONPATH=. pytest tests/test_cache.py tests/test_permissions.py tests/test_llm_client.py::TestCircuitBreaker tests/test_llm_client.py::TestRetryWithBackoff::test_all_attempts_fail_raises tests/test_llm_client.py::TestRetryWithBackoff::test_retries_on_failure tests/test_llm_client.py::TestHealthCache tests/test_llm_client.py::TestTokenEstimation -v --tb=short
+          PYTHONPATH=. pytest tests/ -v --tb=short --cov=agent --cov=gui --cov-report=xml --cov-report=term
+      - name: Upload coverage to Codecov
+        if: github.event_name != 'pull_request'
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 2a: Build images on PR (validation only, no push)
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-pr:
+    name: Docker Build Validation (PR)
+    runs-on: ubuntu-latest
+    needs: lint-test
+    if: github.event_name == 'pull_request'
+    strategy:
+      matrix:
+        include:
+          - image: agent
+            dockerfile: deploy/Dockerfile.agent
+            context: .
+          - image: gui
+            dockerfile: gui/Dockerfile
+            context: gui
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Build image for validation (no push)
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: pr-test-${{ matrix.image }}:${{ github.sha }}
+          platforms: linux/amd64
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 2b: Build images on main push (full multi-arch, pushed to GHCR)
+  # ─────────────────────────────────────────────────────────────────────────────
   build-all:
     name: Build ${{ matrix.image }}
     runs-on: ubuntu-latest
@@ -66,12 +119,6 @@ jobs:
             platforms: linux/amd64,linux/arm64
             cache_scope: ollama-cache
             build_args: OLLAMA_MODEL=qwen2.5:3b
-          - image: ollama-mistral
-            dockerfile: deploy/Dockerfile.ollama
-            context: .
-            platforms: linux/amd64,linux/arm64
-            cache_scope: ollama-mistral-cache
-            build_args: OLLAMA_MODEL=mistral:7b
     permissions:
       contents: read
       packages: write
@@ -109,10 +156,97 @@ jobs:
           platforms: ${{ matrix.platforms }}
           build-args: ${{ matrix.build_args }}
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 2c: Build ollama-mistral (heavy ~4GB, weekly or manual trigger)
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-ollama-mistral:
+    name: Build ollama-mistral
+    runs-on: ubuntu-latest
+    needs: lint-test
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.DOCAI }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-ollama-mistral
+          tags: |
+            type=ref,event=branch
+            type=raw,value=sha-${{ github.sha }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=scheduled-rebuild,enable=${{ github.event_name == 'schedule' }}
+      - name: Build & push ollama-mistral
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile.ollama
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=ollama-mistral-cache
+          cache-to: type=gha,scope=ollama-mistral-cache,mode=max
+          platforms: linux/amd64,linux/arm64
+          build-args: OLLAMA_MODEL=mistral:7b
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 3: Trivy config scan (runs once, not per-image)
+  # ─────────────────────────────────────────────────────────────────────────────
+  trivy-config-scan:
+    name: Scan Repo Config
+    runs-on: ubuntu-latest
+    needs: lint-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Trivy config scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: .
+          format: json
+          output: trivy-config-results.json
+          severity: CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN
+      - name: Convert to SARIF
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-config-results.sarif
+      - name: Upload config scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-config-results
+          path: |
+            trivy-config-results.json
+            trivy-config-results.sarif
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 4: Vulnerability scan each image (from GHCR)
+  # ─────────────────────────────────────────────────────────────────────────────
   scan-all:
     name: Scan ${{ matrix.image }}
     runs-on: ubuntu-latest
-    needs: build-all
+    needs: [build-all, build-ollama-mistral]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
       matrix:
@@ -132,7 +266,7 @@ jobs:
 
       - name: Pull Docker image
         run: |
-          IMAGE_TAG="${{ env.IMAGE_PREFIX }}/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.ref == 'refs/heads/main' && github.sha || github.sha }}"
+          IMAGE_TAG="${{ env.IMAGE_PREFIX }}/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}"
           echo "Pulling $IMAGE_TAG"
           docker pull "$IMAGE_TAG"
 
@@ -144,14 +278,6 @@ jobs:
           output: trivy-results-${{ matrix.image }}.json
           severity: CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN
           vuln-type: os,library
-
-      - name: Run Trivy config scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: config
-          scan-ref: .
-          format: table
-          output: trivy-config-${{ matrix.image }}.txt
 
       - name: Convert Trivy results to SARIF
         uses: aquasecurity/trivy-action@master
@@ -173,13 +299,15 @@ jobs:
             trivy-results-${{ matrix.image }}.json
             trivy-results-${{ matrix.image }}.sarif
             trivy-summary-${{ matrix.image }}.txt
-            trivy-config-${{ matrix.image }}.txt
           retention-days: 30
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 5: Publish combined security report
+  # ─────────────────────────────────────────────────────────────────────────────
   publish-report:
     name: Publish Security Report
     runs-on: ubuntu-latest
-    needs: scan-all
+    needs: [scan-all, trivy-config-scan]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: write
@@ -224,3 +352,34 @@ jobs:
         with:
           commit_message: "docs: update README with latest Trivy security scan results"
           file_pattern: README.md
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 6: Security gate - fail if critical vulnerabilities found
+  # ─────────────────────────────────────────────────────────────────────────────
+  security-gate:
+    name: Security Gate
+    runs-on: ubuntu-latest
+    needs: publish-report
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download security report
+        uses: actions/download-artifact@v4
+        with:
+          name: security-report
+          path: .
+      - name: Check critical vulnerabilities
+        run: |
+          python3 -c "
+          import json, sys
+          with open('security-report.json') as f:
+              data = json.load(f)
+          total = sum(img.get('critical_count', 0) for img in data['images'].values())
+          print(f'Total critical vulnerabilities: {total}')
+          if total > 0:
+              print('ERROR: Critical vulnerabilities found. Fix before merging.')
+              sys.exit(1)
+          print('No critical vulnerabilities. Gate passed.')
+          "

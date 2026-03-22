@@ -3,10 +3,6 @@ name: "PR Review Bot"
 on:
   pull_request:
     types: [opened, reopened, ready_for_review]
-  pull_request_review:
-    types: [submitted]
-  issue_comment:
-    types: [created]
 
 permissions:
   contents: read
@@ -14,37 +10,80 @@ permissions:
   issues: write
 
 jobs:
-  # ---- Welcome new contributors -----------------------------------------
+  # ---- Welcome first-time contributors + review summary ----------------------
   welcome:
-    name: Welcome first-time contributor
+    name: Welcome & Review Summary
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' && github.event.action == 'opened'
     steps:
-      - name: Check if first-time contributor
-        uses: actions/first-interaction@v3
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Get changed files
+        id: files
+        uses: actions/github-script@v8
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          pr-message: |
-            :wave: **Welcome to DevOps AI Copilot, @${{ github.actor }}!** :rocket:
-
-            Thanks for opening your first PR! Here's what happens next:
-
-            1. :white_check_mark: **CI checks** will run automatically (lint, test, build)
-            2. :eyes: A **code owner** will review your changes shortly
-            3. :label: **Labels** will be applied based on the files changed
-
-            **Quick links:**
-            - [Contribution Guide](../blob/main/CONTRIBUTING.md)
-            - [Architecture Overview](../blob/main/docs/architecture.md)
-            - [Local Dev Setup](../blob/main/README.md#local-development)
-
-            Please make sure your PR:
-            - [ ] Has a meaningful title and description
-            - [ ] Passes all CI checks
-            - [ ] Has no hardcoded secrets or credentials
-            - [ ] Includes tests for new functionality
-
-            _DevOps AI Copilot bot_ :robot:
+          script: |
+            const pr = context.payload.pull_request;
+            const files = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+            });
+            const changedPaths = files.data.map(f => f.filename);
+            const areas = [];
+            if (changedPaths.some(f => f.startsWith('agent/'))) areas.push('`agent/` - AI/LLM core logic');
+            if (changedPaths.some(f => f.startsWith('agent/tools/'))) areas.push('`agent/tools/` - Infra tool integrations');
+            if (changedPaths.some(f => f.startsWith('gui/'))) areas.push('`gui/` - Streamlit frontend');
+            if (changedPaths.some(f => f.startsWith('deploy/'))) areas.push('`deploy/` - Docker/K8s manifests');
+            if (changedPaths.some(f => f.startsWith('.github/'))) areas.push('`.github/` - CI/CD workflows');
+            if (changedPaths.some(f => f.startsWith('tests/'))) areas.push('`tests/` - Test suite');
+            if (changedPaths.some(f => f.startsWith('scripts/'))) areas.push('`scripts/` - Data ingestion');
+            const areaList = areas.length > 0 ? areas.map(a => `- ${a}`).join('\n') : '- General changes';
+            const isFirstTime = pr.author_association === 'FIRST_TIME_CONTRIBUTOR';
+            const body = [
+              isFirstTime ? ':wave: **Welcome to DevOps AI Copilot, @${{ github.actor }}!** :rocket:\n' : '',
+              'Thanks for opening this PR! Here\'s what happens next:',
+              '',
+              '1. :white_check_mark: **CI checks** will run automatically (lint, test, build)',
+              '2. :eyes: A **code owner** will review your changes shortly',
+              '3. :label: **Labels** will be applied based on the files changed',
+              '',
+              '**Quick links:**',
+              '- [Contribution Guide](../blob/main/CONTRIBUTING.md)',
+              '- [Architecture Overview](../blob/main/docs/architecture.md)',
+              '- [Local Dev Setup](../blob/main/README.md#local-development)',
+              '',
+              '---',
+              '',
+              '## :mag: Automated Code Review Summary',
+              '',
+              `**Files changed:** ${files.data.length}`,
+              '',
+              '**Areas affected:**',
+              areaList,
+              '',
+              '**Review checklist for reviewers:**',
+              '- [ ] Logic correctness & edge cases',
+              '- [ ] No hardcoded secrets or credentials',
+              '- [ ] Tests cover new functionality',
+              '- [ ] Docs/comments updated where needed',
+              '- [ ] No breaking changes to existing APIs',
+              '- [ ] Security: no new vulnerabilities introduced',
+              '',
+              '_DevOps AI Copilot bot_ :robot:'
+            ].filter(Boolean).join('\n');
+            return body;
+          result-encoding: string
+      - name: Post welcome & review comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: '${{ steps.files.outputs.result }}'
+            });
 
   # ---- Auto-assign reviewers -------------------------------------------
   assign-reviewers:
@@ -72,22 +111,16 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const body = pr.body || '';
-
-            // Check for unfilled template sections
             const issues = [];
-
             if (body.trim().length < 50) {
               issues.push('PR description is too short (< 50 chars). Please fill in the template.');
             }
-
             if (body.includes('<!-- Briefly describe what this PR does and WHY -->')) {
               issues.push('Please fill in the **Description** section.');
             }
-
             if (body.includes('<!-- issue number -->')) {
               issues.push('Please link the related issue (or write `Closes N/A` if not applicable).');
             }
-
             if (issues.length > 0) {
               const message = [
                 ':warning: **PR Template Checklist - Action Required**',
@@ -98,7 +131,6 @@ jobs:
                 '',
                 '_DevOps AI Copilot bot_ :robot:'
               ].join('\n');
-
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -106,62 +138,3 @@ jobs:
                 body: message
               });
             }
-
-  # ---- Review reminder on PR ready -------------------------------------
-  review-reminder:
-    name: Post review guidelines on PR open
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.action == 'opened'
-    steps:
-      - name: Post review guidelines comment
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const pr = context.payload.pull_request;
-            const files = await github.rest.pulls.listFiles({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-            });
-
-            const changedPaths = files.data.map(f => f.filename);
-            const areas = [];
-
-            if (changedPaths.some(f => f.startsWith('agent/'))) areas.push('`agent/` - AI/LLM core logic');
-            if (changedPaths.some(f => f.startsWith('agent/tools/'))) areas.push('`agent/tools/` - Infra tool integrations');
-            if (changedPaths.some(f => f.startsWith('gui/'))) areas.push('`gui/` - Streamlit frontend');
-            if (changedPaths.some(f => f.startsWith('deploy/'))) areas.push('`deploy/` - Docker/K8s manifests');
-            if (changedPaths.some(f => f.startsWith('.github/'))) areas.push('`.github/` - CI/CD workflows');
-            if (changedPaths.some(f => f.startsWith('tests/'))) areas.push('`tests/` - Test suite');
-            if (changedPaths.some(f => f.startsWith('scripts/'))) areas.push('`scripts/` - Data ingestion');
-
-            const areaList = areas.length > 0
-              ? areas.map(a => `- ${a}`).join('\n')
-              : '- General changes';
-
-            const body = [
-              '## :mag: Automated Code Review Summary',
-              '',
-              `**Files changed:** ${files.data.length}`,
-              '',
-              '**Areas affected:**',
-              areaList,
-              '',
-              '**Review checklist for reviewers:**',
-              '- [ ] Logic correctness & edge cases',
-              '- [ ] No hardcoded secrets or credentials',
-              '- [ ] Tests cover new functionality',
-              '- [ ] Docs/comments updated where needed',
-              '- [ ] No breaking changes to existing APIs',
-              '- [ ] Security: no new vulnerabilities introduced',
-              '- [ ] Banking domain: complies with data handling policies',
-              '',
-              '_DevOps AI Copilot bot_ :robot:'
-            ].join('\n');
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr.number,
-              body: body
-            });
