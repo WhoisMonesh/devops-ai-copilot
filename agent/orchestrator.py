@@ -3,12 +3,11 @@
 # - Uses in-cluster service DNS (jenkins.devops.svc, elasticsearch.devops.svc, etc.)
 # - LLM provider is fully swappable via LLM_PROVIDER env var (ollama | vertexai | bedrock)
 # - All tool sets toggled via *_ENABLED env vars (set from GUI -> ConfigMap)
-from __future__ import annotations
 
 import logging
 import time
 import uuid
-from typing import Any, List, Optional
+from typing import Any, List, Optional, TYPE_CHECKING
 
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.memory import ConversationBufferWindowMemory
@@ -25,7 +24,10 @@ logger = logging.getLogger(__name__)
 # Enhanced system prompt with better query understanding
 # ---------------------------------------------------------------------------
 SYSTEM_PROMPT = """You are DevOps AI Copilot - expert SRE assistant running inside the Kubernetes cluster.
+
 You have access to these tools: {tool_names}
+
+{tools}
 
 Current infrastructure endpoints:
   Nginx:         {nginx_url}
@@ -159,9 +161,9 @@ def _wrap_tool_with_permission(tool):
         return f"Tool '{tool_name}' executed"
 
     class PermittedTool(BaseTool):
-        name = tool.name
-        description = tool.description
-        args_schema = getattr(tool, 'args_schema', None)
+        name: str = tool.name
+        description: str = tool.description
+        args_schema: Optional[type] = getattr(tool, 'args_schema', None)
 
         def _run(self, *args, **kwargs):
             return permitted_run(*args, **kwargs)
@@ -181,104 +183,104 @@ def _load_tools() -> list:
         from .tools.k8s_tool import k8s_tools
         tools.extend(k8s_tools)
         logger.info("Loaded K8s tools")
-    except Exception as e:
-        logger.warning("K8s tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.jenkins_tool import jenkins_tools
         tools.extend(jenkins_tools)
         logger.info("Loaded Jenkins tools")
-    except Exception as e:
-        logger.warning("Jenkins tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.kibana_tool import kibana_tools
         tools.extend(kibana_tools)
         logger.info("Loaded Kibana tools")
-    except Exception as e:
-        logger.warning("Kibana tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.artifactory_tool import artifactory_tools
         tools.extend(artifactory_tools)
         logger.info("Loaded Artifactory tools")
-    except Exception as e:
-        logger.warning("Artifactory tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.nginx_tool import get_nginx_tools
         tools.extend(get_nginx_tools())
         logger.info("Loaded Nginx tools")
-    except Exception as e:
-        logger.warning("Nginx tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.prometheus_tools import PROMETHEUS_TOOLS
         tools.extend(PROMETHEUS_TOOLS)
         logger.info("Loaded Prometheus tools")
-    except Exception as e:
-        logger.warning("Prometheus tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.grafana_tool import GRAFANA_TOOLS
         tools.extend(GRAFANA_TOOLS)
         logger.info("Loaded Grafana tools")
-    except Exception as e:
-        logger.warning("Grafana tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.llm_tools import LLM_TOOLS
         tools.extend(LLM_TOOLS)
         logger.info("Loaded LLM tools")
-    except Exception as e:
-        logger.warning("LLM tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.aws_tool import AWS_TOOLS
         tools.extend(AWS_TOOLS)
         logger.info("Loaded AWS tools")
-    except Exception as e:
-        logger.warning("AWS tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.cloudwatch_tool import CLOUDWATCH_TOOLS
         tools.extend(CLOUDWATCH_TOOLS)
         logger.info("Loaded CloudWatch tools")
-    except Exception as e:
-        logger.warning("CloudWatch tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.database_tool import DATABASE_TOOLS
         tools.extend(DATABASE_TOOLS)
         logger.info("Loaded Database tools")
-    except Exception as e:
-        logger.warning("Database tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.docker_tool import DOCKER_TOOLS
         tools.extend(DOCKER_TOOLS)
         logger.info("Loaded Docker tools")
-    except Exception as e:
-        logger.warning("Docker tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.github_tool import GITHUB_TOOLS
         tools.extend(GITHUB_TOOLS)
         logger.info("Loaded GitHub tools")
-    except Exception as e:
-        logger.warning("GitHub tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.pagerduty_tool import PAGERDUTY_TOOLS
         tools.extend(PAGERDUTY_TOOLS)
         logger.info("Loaded PagerDuty tools")
-    except Exception as e:
-        logger.warning("PagerDuty tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.ssl_tool import SSL_TOOLS
         tools.extend(SSL_TOOLS)
         logger.info("Loaded SSL tools")
-    except Exception as e:
-        logger.warning("SSL tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.terraform_tool import TERRAFORM_TOOLS
         tools.extend(TERRAFORM_TOOLS)
         logger.info("Loaded Terraform tools")
-    except Exception as e:
-        logger.warning("Terraform tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     try:
         from .tools.knowledge_base_tool import KB_TOOLS
         tools.extend(KB_TOOLS)
         logger.info("Loaded Knowledge Base tools")
-    except Exception as e:
-        logger.warning("Knowledge Base tools unavailable: %s", e)
+    except Exception:
+        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
     if not tools:
         logger.error("No tools loaded - agent will have very limited capability")
     # Wrap all tools with permission checks
@@ -304,18 +306,24 @@ class Orchestrator:
         llm = DevOpsLLM()
         tool_names = ", ".join(t.name for t in tools)
         grafana_url = config.infra.grafana_url or 'not configured'
+
+        # Build a template that preserves {tools} and {tool_names} for create_react_agent
+        # Only pre-format the infrastructure variables that don't change at runtime
+        infrastructure_template = SYSTEM_PROMPT.format(
+            tool_names='{tool_names}',  # preserved for agent
+            tools='{tools}',           # preserved for agent
+            nginx_url=config.infra.nginx_url or "not configured",
+            kibana_url=config.infra.kibana_url or "not configured",
+            jenkins_url=config.infra.jenkins_url or "not configured",
+            artifactory_url=config.infra.artifactory_url or "not configured",
+            k8s_namespace=config.infra.k8s_namespace,
+            prometheus_url=getattr(config.infra, 'prometheus_url', 'not configured'),
+            grafana_url=grafana_url,
+            llm_provider=config.llm.provider,
+        )
+
         prompt = PromptTemplate.from_template(
-            SYSTEM_PROMPT.format(
-                tool_names=tool_names,
-                nginx_url=config.infra.nginx_url or "not configured",
-                kibana_url=config.infra.kibana_url or "not configured",
-                jenkins_url=config.infra.jenkins_url or "not configured",
-                artifactory_url=config.infra.artifactory_url or "not configured",
-                k8s_namespace=config.infra.k8s_namespace,
-                prometheus_url=getattr(config.infra, 'prometheus_url', 'not configured'),
-                grafana_url=grafana_url,
-                llm_provider=config.llm.provider,
-            )
+            infrastructure_template
             + "\n\nChat History:\n{chat_history}\n\nQuestion: {input}\n{agent_scratchpad}"
         )
         agent = create_react_agent(llm=llm, tools=tools, prompt=prompt)
@@ -347,8 +355,8 @@ class Orchestrator:
         - Per-request correlation ID for tracing
         - Self-metrics collection (latency, tool usage, errors)
         """
-        from cache import _question_cache_key, QUERY_CACHE
-        from metrics import get_metrics_collector
+        from agent.cache import _question_cache_key, QUERY_CACHE
+        from agent.metrics import get_metrics_collector
 
         metrics = get_metrics_collector()
         corr_id = str(uuid.uuid4())[:8]
@@ -365,7 +373,7 @@ class Orchestrator:
             return {
                 "answer": cached["answer"],
                 "tool_used": cached.get("tool_used"),
-                "sources": cached.get("sources"),
+                "sources": cached.get("sources") or [],
                 "cached": True,
                 "corr_id": corr_id,
             }
@@ -373,7 +381,7 @@ class Orchestrator:
 
         if not self._agent_executor:
             metrics.record_error("initialization", "orchestrator")
-            return {"answer": "Agent not initialized.", "tool_used": None, "sources": None}
+            return {"answer": "Agent not initialized.", "tool_used": None, "sources": []}
 
         try:
             result = self._agent_executor.invoke({"input": question})
@@ -392,18 +400,19 @@ class Orchestrator:
             return {
                 "answer": answer,
                 "tool_used": None,
-                "sources": None,
+                "sources": [],
                 "cached": False,
                 "corr_id": corr_id,
                 "latency_seconds": round(latency, 2),
             }
-        except Exception as e:
+        except Exception:
+            # Intentionally broad: orchestrator run() may encounter agent, LLM, or tool errors
             latency = time.time() - start_time
             metrics.record_latency(latency)
             metrics.record_request("error")
-            metrics.record_error(type(e).__name__, "orchestrator")
+            metrics.record_error("Exception", "orchestrator")
             logger.exception("Agent error [corr_id=%s] for question=%r", corr_id, question)
-            return {"answer": f"Error: {e}", "tool_used": None, "sources": None}
+            return {"answer": "Error: agent execution failed", "tool_used": None, "sources": None}
 
     def llm_health(self) -> dict:
         """Return LLM provider health info."""

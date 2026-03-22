@@ -2,8 +2,6 @@
 # Local development stack: agent + GUI + Ollama (with pre-pulled model)
 # Production: use deploy/k8s/ manifests instead
 
-version: "3.9"
-
 services:
 
   # ── FastAPI Agent ──────────────────────────────────────────────────────────
@@ -11,7 +9,7 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.agent
-    image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-agent:local
+    image: ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-agent:local
     container_name: copilot-agent
     restart: unless-stopped
     ports:
@@ -25,7 +23,7 @@ services:
       - API_KEY=${API_KEY:-}
     depends_on:
       ollama:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -46,7 +44,7 @@ services:
     build:
       context: ..
       dockerfile: gui/Dockerfile
-    image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-gui:local
+    image: ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-gui:local
     container_name: copilot-gui
     restart: unless-stopped
     ports:
@@ -56,7 +54,7 @@ services:
       - AGENT_API_KEY=${API_KEY:-}
     depends_on:
       agent:
-        condition: service_healthy
+        condition: service_started
     networks:
       - copilot
     deploy:
@@ -70,34 +68,34 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.ollama
       args:
-        - OLLAMA_MODEL=mistral:7b
-    image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-ollama:local
+        - OLLAMA_MODEL=qwen2.5:3b
+    image: ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-ollama:local
     container_name: copilot-ollama
     restart: unless-stopped
     ports:
       - "11434:11434"
     environment:
-      - OLLAMA_MODEL=mistral:7b
-      # Limit Ollama memory to leave room for the OS
+      # qwen2.5:3b needs ~2-3GB, well suited for 8GB Mac M1
+      - OLLAMA_MODEL=qwen2.5:3b
       - OLLAMA_NUM_PARALLEL=2
       - OLLAMA_MAX_LOADED_MODELS=1
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:11434/api/tags || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s   # Model is pre-baked, minimal startup time
+      start_period: 60s
     networks:
       - copilot
     deploy:
       resources:
         limits:
-          # mistral:7b needs ~6-8GB RAM to run; leave headroom for OS
-          memory: 8G
-        reservations:
+          # qwen2.5:3b fits comfortably in 4GB with room for OS
           memory: 4G
+        reservations:
+          memory: 2G
 
 volumes:
   ollama_data:

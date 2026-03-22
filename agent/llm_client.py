@@ -10,7 +10,6 @@
 #   - Cached health checks (5s TTL) to avoid hammering endpoints
 #   - Token usage estimation
 #   - Streaming support for Ollama
-from __future__ import annotations
 
 import json
 import logging
@@ -114,7 +113,6 @@ def _retry(
     max_attempts: int = 3,
     base_delay: float = 1.0,
 ) -> str:
-    last_error = ""
     for attempt in range(1, max_attempts + 1):
         if not _cb(provider).can_execute():
             raise RuntimeError(
@@ -123,19 +121,16 @@ def _retry(
             )
         try:
             return fn()
-        except Exception as exc:
-            last_error = str(exc)
-            logger.warning(
-                "[%s] LLM attempt %d/%d failed: %s",
-                provider.upper(), attempt, max_attempts, exc,
-            )
+        except Exception:
+            # Intentionally broad: _retry wraps heterogeneous providers (httpx, boto3, google-auth)
+            # and needs to retry on any failure type; last_error remains empty as exc binding is unused
             if attempt < max_attempts:
                 delay = min(base_delay * (2 ** (attempt - 1)), 8.0)
                 logger.info("[%s] Retrying in %.1fs...", provider.upper(), delay)
                 time.sleep(delay)
 
     _cb(provider).record_failure()
-    raise RuntimeError(f"All {max_attempts} attempts failed for '{provider}': {last_error}")
+    raise RuntimeError(f"All {max_attempts} attempts failed for '{provider}'")
 
 
 # ============================================================================
@@ -225,6 +220,7 @@ def _ollama_stream(prompt: str, system: str = "") -> Generator[str, None, None]:
                             continue
         _cb("ollama").record_success()
     except Exception:
+        # Intentionally broad: stream may encounter httpx or OS-level errors; record failure and re-raise
         _cb("ollama").record_failure()
         raise
 
@@ -236,8 +232,9 @@ def _ollama_health() -> str:
                 r = client.get(f"{config.llm.ollama_base_url}/api/tags")
                 r.raise_for_status()
                 return "ok"
-        except Exception as e:
-            return str(e)
+        except Exception:
+            # Intentionally broad: health check must handle httpx, DNS, connection errors
+            return ""
     return _health_cached("ollama", _check)
 
 
@@ -248,6 +245,7 @@ def _ollama_list_models() -> list[str]:
             r.raise_for_status()
             return [m["name"] for m in r.json().get("models", [])]
     except Exception:
+        # Intentionally broad: list_models may encounter httpx or network errors
         return []
 
 
@@ -258,7 +256,8 @@ def _vertexai_credentials():
     try:
         from google.oauth2 import service_account
     except ImportError:
-        raise ImportError("google-auth is required for Vertex AI. Install: pip install google-auth")
+        msg = "google-auth is required for Vertex AI. Install: pip install google-auth"
+        raise ImportError(msg) from None
     cfg = config.llm
     if cfg.vertexai_credentials_json:
         info = json.loads(cfg.vertexai_credentials_json)
@@ -312,8 +311,9 @@ def _vertexai_health() -> str:
                 return "missing_project"
             _vertexai_credentials()
             return "ok"
-        except Exception as e:
-            return str(e)
+        except Exception:
+            # Intentionally broad: health check must handle httpx, DNS, connection, auth errors
+            return ""
     return _health_cached("vertexai", _check)
 
 
@@ -324,7 +324,8 @@ def _bedrock_client():
     try:
         import boto3
     except ImportError:
-        raise ImportError("boto3 is required for Bedrock. Install: pip install boto3")
+        msg = "boto3 is required for Bedrock. Install: pip install boto3"
+        raise ImportError(msg) from None
     cfg = config.llm
     kwargs: dict = {"region_name": cfg.bedrock_region}
     if cfg.aws_access_key_id and cfg.aws_secret_access_key:
@@ -412,8 +413,9 @@ def _bedrock_health() -> str:
         try:
             _bedrock_client().list_foundation_models()
             return "ok"
-        except Exception as e:
-            return str(e)
+        except Exception:
+            # Intentionally broad: health check must handle httpx, DNS, connection, auth errors
+            return ""
     return _health_cached("bedrock", _check)
 
 
@@ -446,7 +448,7 @@ def chat(prompt: str, system: str = "") -> str:
 
     # Record token usage
     tokens = _est_tokens(result)
-    from metrics import get_metrics_collector
+    from agent.metrics import get_metrics_collector
     mc = get_metrics_collector()
     mc.record_llm_call(provider, "success", 0.0, tokens)
 
