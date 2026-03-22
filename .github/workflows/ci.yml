@@ -68,7 +68,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
       - name: Build & push devops-ai-copilot-agent
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/Dockerfile.agent
@@ -110,7 +110,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
       - name: Build & push devops-ai-copilot-gui
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: gui/
           file: Dockerfile
@@ -152,7 +152,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
       - name: Build & push devops-ai-copilot-ollama
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/Dockerfile.ollama
