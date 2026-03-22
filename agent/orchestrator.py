@@ -7,7 +7,7 @@
 import logging
 import time
 import uuid
-from typing import Any, List, Optional, TYPE_CHECKING
+from typing import Any, List, Optional
 
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.memory import ConversationBufferWindowMemory
@@ -304,7 +304,6 @@ class Orchestrator:
         """(Re-)build agent executor - called on startup and config hot-reload."""
         tools = _load_tools()
         llm = DevOpsLLM()
-        tool_names = ", ".join(t.name for t in tools)
         grafana_url = config.infra.grafana_url or 'not configured'
 
         # Build a template that preserves {tools} and {tool_names} for create_react_agent

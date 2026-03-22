@@ -12,7 +12,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/whoismonesh
+  IMAGE_PREFIX: ghcr.io/WhoisMonesh
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -63,13 +63,13 @@ jobs:
           - image: ollama-qwen
             dockerfile: deploy/Dockerfile.ollama
             context: .
-            platforms: linux/amd64
+            platforms: linux/amd64,linux/arm64
             cache_scope: ollama-cache
             build_args: OLLAMA_MODEL=qwen2.5:3b
           - image: ollama-mistral
             dockerfile: deploy/Dockerfile.ollama
             context: .
-            platforms: linux/amd64
+            platforms: linux/amd64,linux/arm64
             cache_scope: ollama-mistral-cache
             build_args: OLLAMA_MODEL=mistral:7b
     permissions:
