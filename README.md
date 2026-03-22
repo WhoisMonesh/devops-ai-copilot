@@ -48,6 +48,12 @@ Ask things like:
 
 ---
 
+## Screenshots
+
+![App Screenshot](AppWorkScreenshot.png)
+
+---
+
 ## Supported Tools (17 tools across 14 integrations)
 
 The agent auto-discovers all tools at startup. Each tool is a self-contained Python module. The LLM decides which tool to call based on your query.
