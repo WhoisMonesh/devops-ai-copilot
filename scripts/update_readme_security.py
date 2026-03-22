@@ -5,6 +5,7 @@ import json
 import os
 import re
 import sys
+from datetime import datetime, timezone
 
 def main():
     if len(sys.argv) < 2:
@@ -17,7 +18,6 @@ def main():
 
     # Collect vuln counts from all images
     images = ["agent", "gui", "ollama"]
-    totals = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "UNKNOWN": 0}
     per_image = {}
 
     for img in images:
@@ -32,55 +32,51 @@ def main():
                     if sev in summary:
                         summary[sev] += 1
         per_image[img] = summary
-        for sev in totals:
-            totals[sev] += summary[sev]
 
-    total_vulns = sum(totals.values())
-    crit = totals["CRITICAL"]
-    high = totals["HIGH"]
+    total_vulns = sum(sum(per_image[img].values()) for img in images)
+    total_crit = sum(per_image[img]["CRITICAL"] for img in images)
+    total_high = sum(per_image[img]["HIGH"] for img in images)
+    scan_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    # Build new security section
-    new_section = f"""## Security Scan
-
-> Scanned with [Trivy](https://github.com/aquasecurity/trivy) on every push to `main`.
-
-| Image | Critical | High | Medium | Low | Total |
-|-------|----------|------|--------|-----|-------|
-| `agent` | {per_image["agent"]["CRITICAL"]} | {per_image["agent"]["HIGH"]} | {per_image["agent"]["MEDIUM"]} | {per_image["agent"]["LOW"]} | {sum(per_image["agent"].values())} |
-| `gui` | {per_image["gui"]["CRITICAL"]} | {per_image["gui"]["HIGH"]} | {per_image["gui"]["MEDIUM"]} | {per_image["gui"]["LOW"]} | {sum(per_image["gui"].values())} |
-| `ollama` | {per_image["ollama"]["CRITICAL"]} | {per_image["ollama"]["HIGH"]} | {per_image["ollama"]["MEDIUM"]} | {per_image["ollama"]["LOW"]} | {sum(per_image["ollama"].values())} |
-
-**Latest scan:** `{commit}` — Total: {total_vulns} vulnerabilities (CRITICAL: {crit}, HIGH: {high})
-
-"""
+    # Build placeholder replacements
+    replacements = {
+        "<!--AGENT_CRITICAL-->": str(per_image["agent"]["CRITICAL"]),
+        "<!--AGENT_HIGH-->": str(per_image["agent"]["HIGH"]),
+        "<!--AGENT_MEDIUM-->": str(per_image["agent"]["MEDIUM"]),
+        "<!--AGENT_LOW-->": str(per_image["agent"]["LOW"]),
+        "<!--AGENT_TOTAL-->": str(sum(per_image["agent"].values())),
+        "<!--GUI_CRITICAL-->": str(per_image["gui"]["CRITICAL"]),
+        "<!--GUI_HIGH-->": str(per_image["gui"]["HIGH"]),
+        "<!--GUI_MEDIUM-->": str(per_image["gui"]["MEDIUM"]),
+        "<!--GUI_LOW-->": str(per_image["gui"]["LOW"]),
+        "<!--GUI_TOTAL-->": str(sum(per_image["gui"].values())),
+        "<!--OLLAMA_CRITICAL-->": str(per_image["ollama"]["CRITICAL"]),
+        "<!--OLLAMA_HIGH-->": str(per_image["ollama"]["HIGH"]),
+        "<!--OLLAMA_MEDIUM-->": str(per_image["ollama"]["MEDIUM"]),
+        "<!--OLLAMA_LOW-->": str(per_image["ollama"]["LOW"]),
+        "<!--OLLAMA_TOTAL-->": str(sum(per_image["ollama"].values())),
+        "<!--COMMIT_SHA-->": commit[:12],
+        "<!--SCAN_DATE-->": scan_date,
+    }
 
     # Read current README
     with open(readme_path) as f:
         content = f.read()
 
-    # Replace existing Security Scan section if present, else insert after Features
-    pattern = r"(?:\n## Security Scan\n>.*?\n\n\| Image.*?\n\n\*\*Latest scan:.*?\n\n)"
-    if re.search(pattern, content, re.DOTALL):
-        new_content = re.sub(pattern, new_section, content, flags=re.DOTALL)
-    else:
-        # Insert after Features section (before Quick Start)
-        marker = "\n---\n\n## Quick Start"
-        if marker in content:
-            new_content = content.replace(marker, "\n" + new_section + "---\n\n## Quick Start")
-        else:
-            # Fallback: append before License
-            marker2 = "\n---\n\n## License"
-            if marker2 in content:
-                new_content = content.replace(marker2, "\n" + new_section + "---\n\n## License")
-            else:
-                new_content = content + "\n" + new_section
+    # Replace all placeholders
+    for placeholder, value in replacements.items():
+        content = content.replace(placeholder, value)
 
     with open(readme_path, "w") as f:
-        f.write(new_content)
+        f.write(content)
 
-    print(f"Updated {readme_path}")
-    print(f"Total vulns: {total_vulns} (CRITICAL: {crit}, HIGH: {high})")
-    if crit > 0 or high > 0:
+    print(f"Updated {readme_path} with scan results for commit {commit[:12]}")
+    print(f"Total vulns: {total_vulns} (CRITICAL: {total_crit}, HIGH: {total_high})")
+    for img in images:
+        s = per_image[img]
+        print(f"  {img}: CRITICAL={s['CRITICAL']} HIGH={s['HIGH']} MEDIUM={s['MEDIUM']} LOW={s['LOW']} TOTAL={sum(s.values())}")
+
+    if total_crit > 0 or total_high > 0:
         print("WARNING: High-severity vulnerabilities detected!")
 
 if __name__ == "__main__":
