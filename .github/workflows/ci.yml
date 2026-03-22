@@ -174,7 +174,7 @@ jobs:
     needs: scan-all
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
-      contents: read
+      contents: write
       packages: read
       actions: read
     steps:
@@ -207,3 +207,12 @@ jobs:
 
       - name: Set GitHub Job Summary
         run: python3 scripts/generate_job_summary.py
+
+      - name: Update README with security scan results
+        run: python3 scripts/update_readme_security.py ${{ github.sha }}
+
+      - name: Commit updated README
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "docs: update README with latest Trivy security scan results"
+          file_pattern: README.md
