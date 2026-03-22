@@ -113,6 +113,8 @@ jobs:
       contents: read
       packages: read
     steps:
+      - uses: actions/checkout@v6
+
       - name: Log in to GHCR for image pull
         uses: docker/login-action@v4
         with:
