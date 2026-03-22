@@ -12,7 +12,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: "ghcr.io/whoismonesh/devops-ai-copilot"
+  IMAGE_PREFIX: "ghcr.io/whoismonesh"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -57,7 +57,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.DOCAI }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Extract metadata for devops-ai-copilot-agent
@@ -99,7 +99,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.DOCAI }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Extract metadata for devops-ai-copilot-gui
@@ -139,7 +139,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.DOCAI }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Extract metadata for devops-ai-copilot-ollama
