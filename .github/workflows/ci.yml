@@ -178,6 +178,8 @@ jobs:
       packages: read
       actions: read
     steps:
+      - uses: actions/checkout@v6
+
       - name: Download all Trivy artifacts
         uses: actions/download-artifact@v4
         with:
