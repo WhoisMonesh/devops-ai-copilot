@@ -115,7 +115,7 @@ jobs:
       - name: Build & push devops-ai-copilot-gui
         uses: docker/build-push-action@v7
         with:
-          context: gui/
+          context: gui
           file: Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
