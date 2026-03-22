@@ -16,7 +16,6 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # ---- Lint & Test -------------------------------------------------------
   lint-test:
     name: Lint & Test
     runs-on: ubuntu-latest
@@ -39,7 +38,6 @@ jobs:
         run: |
           PYTHONPATH=. pytest tests/test_cache.py tests/test_permissions.py tests/test_llm_client.py::TestCircuitBreaker tests/test_llm_client.py::TestRetryWithBackoff::test_all_attempts_fail_raises tests/test_llm_client.py::TestRetryWithBackoff::test_retries_on_failure tests/test_llm_client.py::TestHealthCache tests/test_llm_client.py::TestTokenEstimation -v --tb=short
 
-  # ---- Build All Docker Images -------------------------------------------
   build-all:
     name: Build ${{ matrix.image }}
     runs-on: ubuntu-latest
@@ -54,41 +52,23 @@ jobs:
             platforms: linux/amd64,linux/arm64
             cache_scope: agent-cache
             build_args: ""
-            tags: |
-              type=ref,event=branch
-              type=sha,prefix=sha-,onmatch=replace
-              type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-              type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
           - image: gui
             dockerfile: gui/Dockerfile
             context: gui
             platforms: linux/amd64,linux/arm64
             cache_scope: gui-cache
             build_args: ""
-            tags: |
-              type=ref,event=branch
-              type=sha,prefix=sha-,onmatch=replace
-              type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-              type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
           - image: ollama
             dockerfile: deploy/Dockerfile.ollama
             context: .
             platforms: linux/amd64
             cache_scope: ollama-cache
             build_args: OLLAMA_MODEL=qwen2.5:3b
-            tags: |
-              type=ref,event=branch
-              type=sha,prefix=sha-,onmatch=replace
-              type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-              type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
     permissions:
       contents: read
       packages: write
       attestations: write
       id-token: write
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
-      image: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v6
       - name: Log in to GitHub Container Registry
@@ -104,7 +84,11 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_PREFIX }}/devops-ai-copilot-${{ matrix.image }}
-          tags: ${{ matrix.tags }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-,onmatch=replace
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ github.sha }},enable=${{ github.ref == 'refs/heads/main' }}
       - name: Build & push devops-ai-copilot-${{ matrix.image }}
         uses: docker/build-push-action@v7
         with:
@@ -117,8 +101,15 @@ jobs:
           cache-to: type=gha,scope=${{ matrix.cache_scope }},mode=max
           platforms: ${{ matrix.platforms }}
           build-args: ${{ matrix.build_args }}
+      - name: Save image tag
+        run: echo "${{ steps.meta.outputs.tags }}" > build-meta/${{ matrix.image }}-tag.txt
+      - name: Upload build meta
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-meta-${{ matrix.image }}
+          path: build-meta/${{ matrix.image }}-tag.txt
+          retention-days: 1
 
-  # ---- Scan All Images with Trivy ----------------------------------------
   scan-all:
     name: Scan ${{ matrix.image }}
     runs-on: ubuntu-latest
@@ -130,23 +121,19 @@ jobs:
     permissions:
       contents: read
       packages: read
-    outputs:
-      agent_result: ${{ steps.trivy.outputs.result == 'agent' && fromJson(steps.trivy.outputs.json) || '' }}
     steps:
-      - name: Download all build artifacts
+      - name: Download build meta
         uses: actions/download-artifact@v4
         with:
           pattern: build-meta-*
           path: build-meta
           merge-multiple: true
 
-      - name: Set image tag from artifact
+      - name: Set image tag
         id: image
         run: |
-          # Read the image tag from the build-meta artifact
           IMAGE_TAG=$(cat build-meta/${{ matrix.image }}-tag.txt)
           echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "Pulling image: $IMAGE_TAG"
 
       - name: Log in to GHCR for image pull
         uses: docker/login-action@v4
@@ -167,7 +154,6 @@ jobs:
           severity: CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN
           vuln-type: os,library
           limit: 100
-        id: trivy
 
       - name: Run Trivy config scanner
         uses: aquasecurity/trivy-action@master
@@ -186,30 +172,9 @@ jobs:
           output: trivy-results-${{ matrix.image }}.sarif
 
       - name: Create plain text summary
-        run: |
-          echo "=== Trivy Scan Summary: ${{ matrix.image }} ===" > trivy-summary-${{ matrix.image }}.txt
-          echo "Image: ${{ steps.image.outputs.tag }}" >> trivy-summary-${{ matrix.image }}.txt
-          echo "Scanned at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> trivy-summary-${{ matrix.image }}.txt
-          echo "" >> trivy-summary-${{ matrix.image }}.txt
-          if command -v trivy &> /dev/null; then
-            trivy image --severity CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN --format table ${{ steps.image.outputs.tag }} >> trivy-summary-${{ matrix.image }}.txt 2>&1 || true
-          else
-            cat trivy-results-${{ matrix.image }}.json | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-results = data.get('Results', [])
-summary = {}
-for r in results:
-    for v in r.get('Vulnerabilities', []) or []:
-        sev = v.get('Severity', 'UNKNOWN')
-        summary[sev] = summary.get(sev, 0) + 1
-print('Vulnerability Summary:')
-for sev in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']:
-    count = summary.get(sev, 0)
-    if count > 0:
-        print(f'  {sev}: {count}')
-" >> trivy-summary-${{ matrix.image }}.txt 2>/dev/null || echo "Summary unavailable" >> trivy-summary-${{ matrix.image }}.txt
-          fi
+        env:
+          SCAN_DATE: ${{ steps.image.outputs.tag }}
+        run: python3 scripts/generate_trivy_summary.py ${{ matrix.image }}
 
       - name: Upload Trivy scan results
         uses: actions/upload-artifact@v4
@@ -222,18 +187,10 @@ for sev in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']:
             trivy-config-${{ matrix.image }}.txt
           retention-days: 30
 
-      - name: Upload build meta artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-meta-${{ matrix.image }}
-          path: build-meta/${{ matrix.image }}-tag.txt
-          retention-days: 1
-
-  # ---- Publish Combined Security Report ----------------------------------
   publish-report:
     name: Publish Security Report
     runs-on: ubuntu-latest
-    needs: [build-all, scan-all]
+    needs: scan-all
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
@@ -247,116 +204,13 @@ for sev in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']:
           path: trivy-results
           merge-multiple: true
 
-      - name: Set up Python for report generation
+      - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       - name: Generate combined security report
-        run: |
-          python3 << 'EOF'
-          import json
-          import os
-          from datetime import datetime, timezone
-
-          images = ["agent", "gui", "ollama"]
-          report = {
-              "generated_at": datetime.now(timezone.utc).isoformat(),
-              "repository": "WhoisMonesh/devops-ai-copilot",
-              "commit": os.environ.get("GITHUB_SHA", "unknown"),
-              "images": {}
-          }
-
-          for img in images:
-              json_file = f"trivy-results/trivy-results-{img}.json"
-              summary_file = f"trivy-results/trivy-summary-{img}.txt"
-
-              report["images"][img] = {"vulnerabilities": {}, "config_scan": "available"}
-
-              if os.path.exists(json_file):
-                  with open(json_file) as f:
-                      data = json.load(f)
-                  results = data.get("Results", [])
-                  summary = {}
-                  critical_fatal = []
-
-                  for r in results:
-                      vulns = r.get("Vulnerabilities") or []
-                      for v in vulns:
-                          sev = v.get("Severity", "UNKNOWN")
-                          summary[sev] = summary.get(sev, 0) + 1
-                          if sev == "CRITICAL":
-                              critical_fatal.append({
-                                  "pkg": v.get("PkgName", "unknown"),
-                                  "installed": v.get("InstalledVersion", "unknown"),
-                                  "fixed": v.get("FixedVersion", "N/A"),
-                                  "title": v.get("Title", v.get("Description", "N/A"))[:100]
-                              })
-
-                  report["images"][img]["vulnerabilities"] = summary
-                  report["images"][img]["critical_count"] = summary.get("CRITICAL", 0)
-                  report["images"][img]["high_count"] = summary.get("HIGH", 0)
-                  report["images"][img]["total_vulns"] = sum(summary.values())
-                  report["images"][img]["critical_vulns"] = critical_fatal[:10]
-              else:
-                  report["images"][img]["error"] = "Scan results not found"
-
-          # Write JSON report
-          with open("security-report.json", "w") as f:
-              json.dump(report, f, indent=2)
-
-          # Write Markdown report
-          with open("security-report.md", "w") as f:
-              f.write("# Security Scan Report\n\n")
-              f.write(f"**Generated:** {report['generated_at']}  \n")
-              f.write(f"**Commit:** `{report['commit']}`  \n")
-              f.write(f"**Repository:** {report['repository']}\n\n")
-              f.write("---")
-              f.write("\n\n")
-
-              total_critical = sum(img.get("critical_count", 0) for img in report["images"].values())
-              total_high = sum(img.get("high_count", 0) for img in report["images"].values())
-
-              f.write(f"## Summary\n\n")
-              f.write(f"| Image | Critical | High | Total |\n")
-              f.write(f"|-------|----------|------|-------|\n")
-              for img, data in report["images"].items():
-                  c = data.get("critical_count", 0)
-                  h = data.get("high_count", 0)
-                  t = data.get("total_vulns", 0)
-                  f.write(f"| {img} | {c} | {h} | {t} |\n")
-              f.write("\n")
-
-              for img, data in report["images"].items():
-                  f.write(f"## {img}\n\n")
-                  vulns = data.get("vulnerabilities", {})
-                  if vulns:
-                      f.write("### Vulnerability Breakdown\n\n")
-                      for sev in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"]:
-                          count = vulns.get(sev, 0)
-                          if count > 0:
-                              f.write(f"- **{sev}:** {count}\n")
-                      f.write("\n")
-                  crits = data.get("critical_vulns", [])
-                  if crits:
-                      f.write("### Critical Vulnerabilities\n\n")
-                      for v in crits:
-                          f.write(f"- `{v['pkg']}` ({v['installed']})")
-                          if v['fixed'] != 'N/A':
-                              f.write(f" — fixed in `{v['fixed']}`")
-                          f.write(f"\n")
-                          f.write(f"  {v['title']}\n")
-                  f.write("\n---\n\n")
-
-              f.write("*Report generated by GitHub Actions CI pipeline — Trivy security scanner*\n")
-
-          print("Reports generated: security-report.json, security-report.md")
-          print(f"Total Critical: {total_critical}, Total High: {total_high}")
-
-          # Exit with error if critical vulns found
-          if total_critical > 0:
-              print("WARNING: Critical vulnerabilities detected!")
-          EOF
+        run: python3 scripts/generate_security_report.py
 
       - name: Upload combined security report
         uses: actions/upload-artifact@v4
@@ -369,55 +223,4 @@ for sev in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']:
           retention-days: 30
 
       - name: Set GitHub Job Summary
-        run: |
-          if [ -f trivy-results/trivy-summary-agent.txt ] && [ -f trivy-results/trivy-summary-gui.txt ] && [ -f trivy-results/trivy-summary-ollama.txt ]; then
-            echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Image | Critical | High | Medium | Low |" >> $GITHUB_STEP_SUMMARY
-            echo "|-------|----------|------|--------|-----|" >> $GITHUB_STEP_SUMMARY
-
-            for img in agent gui ollama; do
-              SUMMARY_FILE="trivy-results/trivy-summary-${img}.txt"
-              if [ -f "$SUMMARY_FILE" ]; then
-                CRIT=$(grep -c "CRITICAL" "$SUMMARY_FILE" || echo "0")
-                HIGH=$(grep -c "HIGH" "$SUMMARY_FILE" || echo "0")
-                MED=$(grep -c "MEDIUM" "$SUMMARY_FILE" || echo "0")
-                LOW=$(grep -c "LOW" "$SUMMARY_FILE" || echo "0")
-                echo "| $img | $CRIT | $HIGH | $MED | $LOW |" >> $GITHUB_STEP_SUMMARY
-              fi
-            done
-
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Full report:** [security-report artifact](#/./Security%20Report/results)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Critical Vulnerabilities Detail" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-
-            for img in agent gui ollama; do
-              JSON_FILE="trivy-results/trivy-results-${img}.json"
-              if [ -f "$JSON_FILE" ]; then
-                python3 << PYEOF
-import json, sys
-try:
-    with open("$JSON_FILE") as f:
-        data = json.load(f)
-    results = data.get("Results", [])
-    crits = []
-    for r in results:
-        for v in (r.get("Vulnerabilities") or []):
-            if v.get("Severity") == "CRITICAL":
-                crits.append(f"{v.get('PkgName','?')}@{v.get('InstalledVersion','?')}: {v.get('Title','?')[:80]}")
-    if crits:
-        print(f"[{img}]")
-        for c in crits[:5]:
-            print(f"  - {c}")
-        print()
-except: pass
-PYEOF
-              fi
-            done
-
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          else
-            echo "No scan results available." >> $GITHUB_STEP_SUMMARY
-          fi
+        run: python3 scripts/generate_job_summary.py
