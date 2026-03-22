@@ -26,6 +26,7 @@ def _fetch_cert(host: str, port: int = 443, timeout: int = 10) -> Optional[dict]
     """Fetch SSL certificate from a host and return parsed info."""
     try:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         with socket.create_connection((host, port), timeout=timeout) as sock:
