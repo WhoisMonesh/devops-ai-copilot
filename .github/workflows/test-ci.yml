@@ -1,0 +1,183 @@
+name: Test CI - Modular
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: 'Select module to test'
+        required: true
+        default: 'lint-test'
+        type: choice
+        options:
+          - lint-test
+          - docker-build
+          - scout-scan
+          - trivy-scan
+          - k8s-validate
+          - all
+      image:
+        description: 'Image to test (for docker-build, scout-scan, trivy-scan)'
+        required: false
+        default: 'agent'
+        type: choice
+        options:
+          - agent
+          - gui
+          - ollama-qwen
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/whoismonesh
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Module: Lint & Test
+  # ─────────────────────────────────────────────────────────────────────────────
+  lint-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    if: inputs.module == 'lint-test' || inputs.module == 'all'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install all deps
+        run: |
+          pip install --upgrade pip
+          pip install -r agent/requirements.txt
+          pip install -r gui/requirements.txt
+          pip install ruff pytest pytest-cov
+      - name: Lint all code (ruff)
+        run: ruff check agent/ gui/
+      - name: Run full test suite
+        run: |
+          PYTHONPATH=. pytest tests/test_cache.py tests/test_permissions.py tests/test_llm_client.py::TestCircuitBreaker tests/test_llm_client.py::TestRetryWithBackoff::test_all_attempts_fail_raises tests/test_llm_client.py::TestRetryWithBackoff::test_retries_on_failure tests/test_llm_client.py::TestHealthCache tests/test_llm_client.py::TestTokenEstimation -v --tb=short --cov=agent --cov=gui --cov-report=xml --cov-report=term
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Module: Docker Build (single image)
+  # ─────────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build (${{ inputs.image }})
+    runs-on: ubuntu-latest
+    if: inputs.module == 'docker-build' || inputs.module == 'all'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Build ${{ inputs.image }}
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ inputs.image == 'ollama-qwen' && '.' || (inputs.image == 'gui' && 'gui' || '.') }}
+          file: ${{ inputs.image == 'gui' && 'gui/Dockerfile' || (inputs.image == 'ollama-qwen' && 'deploy/Dockerfile.ollama' || 'deploy/Dockerfile.agent') }}
+          push: false
+          load: true
+          tags: test-${{ inputs.image }}:latest
+          platforms: linux/amd64
+          build-args: ${{ inputs.image == 'ollama-qwen' && 'OLLAMA_MODEL=qwen2.5:3b' || '' }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Module: Docker Scout Scan
+  # ─────────────────────────────────────────────────────────────────────────────
+  scout-scan:
+    name: Docker Scout Scan (${{ inputs.image }})
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: inputs.module == 'scout-scan' || inputs.module == 'all'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Pull test image
+        run: docker pull test-${{ inputs.image }}:latest
+
+      - name: Docker Scout CVE Scan
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: test-${{ inputs.image }}:latest
+          format: sarif
+          output: docker-scout-cve-${{ inputs.image }}.sarif
+          only-severities: critical,high
+
+      - name: Docker Scout SBOM
+        uses: docker/scout-action@v1
+        with:
+          command: sbom
+          image: test-${{ inputs.image }}:latest
+          format: spdx-json
+          output: docker-scout-sbom-${{ inputs.image }}.spdx.json
+
+      - name: Upload Docker Scout results
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-scout-results-${{ inputs.image }}
+          path: |
+            docker-scout-sbom-${{ inputs.image }}.spdx.json
+            docker-scout-cve-${{ inputs.image }}.sarif
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Module: Trivy Image Scan
+  # ─────────────────────────────────────────────────────────────────────────────
+  trivy-scan:
+    name: Trivy Scan (${{ inputs.image }})
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: inputs.module == 'trivy-scan' || inputs.module == 'all'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: test-${{ inputs.image }}:latest
+          format: json
+          output: trivy-results-${{ inputs.image }}.json
+          severity: CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN
+          vuln-type: os,library
+
+      - name: Convert Trivy results to SARIF
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: test-${{ inputs.image }}:latest
+          format: sarif
+          output: trivy-results-${{ inputs.image }}.sarif
+
+      - name: Upload Trivy scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results-${{ inputs.image }}
+          path: |
+            trivy-results-${{ inputs.image }}.json
+            trivy-results-${{ inputs.image }}.sarif
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Module: K8s Manifest Validation
+  # ─────────────────────────────────────────────────────────────────────────────
+  k8s-validate:
+    name: K8s Manifest Validation
+    runs-on: ubuntu-latest
+    if: inputs.module == 'k8s-validate' || inputs.module == 'all'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+      - name: Validate Kubernetes manifests
+        run: |
+          echo "Validating Kubernetes manifests (YAML syntax check)..."
+          for f in deploy/k8s/*.yaml; do
+            echo "Checking $f..."
+            python3 -c "import yaml; list(yaml.safe_load_all(open('$f')))" 2>/dev/null || { echo "YAML syntax error in $f"; exit 1; }
+          done
+          echo "All Kubernetes manifests have valid YAML syntax!"
