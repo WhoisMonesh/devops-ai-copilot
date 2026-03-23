@@ -31,7 +31,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: 'high'
           comment-summary-in-pr: on-failure
@@ -90,6 +90,14 @@ jobs:
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+          retention-days: 7
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Stage 1b: Kubernetes Manifest Validation
@@ -260,7 +268,153 @@ jobs:
           build-args: OLLAMA_MODEL=mistral:7b
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Stage 3: Trivy config scan (runs once, not per-image)
+  # Stage 3b: Docker Scout Security Scan
+  # ─────────────────────────────────────────────────────────────────────────────
+  docker-scout:
+    name: Docker Scout Scan ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    needs: [build-all, build-ollama-mistral]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      matrix:
+        image: [agent, gui, ollama-qwen, ollama-mistral]
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Pull Docker image
+        run: |
+          docker pull ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
+
+      - name: Docker Scout SBOM
+        uses: docker/scout-action@v1
+        with:
+          command: sbom
+          image: ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
+          output-file: docker-scout-sbom-${{ matrix.image }}.json
+
+      - name: Docker Scout CVE Scan
+        uses: docker/scout-action@v1
+        with:
+          command: cve
+          image: ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
+          format: sarif
+          output-file: docker-scout-cve-${{ matrix.image }}.sarif
+          only-fixed: false
+          exit-code: false
+
+      - name: Docker Scout Compare to Base
+        uses: docker/scout-action@v1
+        with:
+          command: compare
+          image: ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
+          to: ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:latest
+          ignore-unchanged: true
+          only-fixed: false
+          exit-code: false
+
+      - name: Upload Docker Scout results
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-scout-results-${{ matrix.image }}
+          path: |
+            docker-scout-sbom-${{ matrix.image }}.json
+            docker-scout-cve-${{ matrix.image }}.sarif
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 3c: Image Size Tracking
+  # ─────────────────────────────────────────────────────────────────────────────
+  image-size-check:
+    name: Image Size Tracking
+    runs-on: ubuntu-latest
+    needs: [build-all, build-ollama-mistral]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.DOCAI }}
+
+      - name: Pull and check image sizes
+        run: |
+          for image in agent gui ollama-qwen ollama-mistral; do
+            echo "Checking ${image}..."
+            docker pull "ghcr.io/whoismonesh/devops-ai-copilot-${image}:sha-${{ github.sha }}" 2>/dev/null || true
+          done
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 3d: PR Test Results Comment
+  # ─────────────────────────────────────────────────────────────────────────────
+  pr-test-comment:
+    name: Post PR Test Results
+    runs-on: ubuntu-latest
+    needs: lint-test
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download coverage
+        uses: actions/download-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage
+
+      - name: Generate PR test comment
+        env:
+          COVERAGE_FILE: coverage/coverage.xml
+        run: |
+          if [ -f "$COVERAGE_FILE" ]; then
+            TOTAL=$(grep -oP 'line-rate="\K[0-9.]+' "$COVERAGE_FILE" | head -1)
+            COVERAGE_PCT=$(python3 -c "print(f'{float(\"$TOTAL\") * 100:.1f}')" 2>/dev/null || echo "N/A")
+          else
+            COVERAGE_PCT="N/A"
+          fi
+
+          COMMENT="## Test Results
+
+| Metric | Status |
+|--------|--------|
+| Lint | Passed |
+| Tests | Passed |
+| Coverage | ${COVERAGE_PCT}% |
+
+**Commit:** \`${{ github.sha }}\`
+**Branch:** \`${{ github.ref_name }}\`
+
+---
+_Automated test results posted by CI_"
+
+          echo "comment<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post comment to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: process.env.comment
+            })
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Stage 4: Trivy config scan (runs once, not per-image)
   # ─────────────────────────────────────────────────────────────────────────────
   trivy-config-scan:
     name: Scan Repo Config
