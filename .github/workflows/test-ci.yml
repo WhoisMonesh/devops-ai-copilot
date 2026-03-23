@@ -25,6 +25,9 @@ on:
           - gui
           - ollama-qwen
 
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/whoismonesh
