@@ -49,11 +49,7 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base_depth: 50
-          max_depth: 100
-          no_verification: true
-          # Only fail on high/critical severity secrets
-          only_verified: false
+          extra_args: --no-verification --only-verified=false
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Stage 1: Lint & Test (runs on ALL pushes and PRs)
