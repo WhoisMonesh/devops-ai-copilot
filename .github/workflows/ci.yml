@@ -374,44 +374,38 @@ jobs:
           path: coverage
 
       - name: Generate PR test comment
-        env:
-          COVERAGE_FILE: coverage/coverage.xml
         run: |
-          if [ -f "$COVERAGE_FILE" ]; then
-            TOTAL=$(grep -oP 'line-rate="\K[0-9.]+' "$COVERAGE_FILE" | head -1)
-            COVERAGE_PCT=$(python3 -c "print(f'{float(\"$TOTAL\") * 100:.1f}')" 2>/dev/null || echo "N/A")
+          echo "## Test Results" > comment.txt
+          echo "" >> comment.txt
+          echo "- Lint: Passed" >> comment.txt
+          echo "- Tests: Passed" >> comment.txt
+          if [ -f coverage/coverage.xml ]; then
+            TOTAL=$(grep -oP 'line-rate="\K[0-9.]+' coverage/coverage.xml | head -1)
+            COV_PCT=$(python3 -c "print(round(float('$TOTAL') * 100, 1))" 2>/dev/null || echo "N/A")
           else
-            COVERAGE_PCT="N/A"
+            COV_PCT="N/A"
           fi
-
-          COMMENT="## Test Results
-
-| Metric | Status |
-|--------|--------|
-| Lint | Passed |
-| Tests | Passed |
-| Coverage | ${COVERAGE_PCT}% |
-
-**Commit:** \`${{ github.sha }}\`
-**Branch:** \`${{ github.ref_name }}\`
-
----
-_Automated test results posted by CI_"
-
-          echo "comment<<EOF" >> $GITHUB_OUTPUT
-          echo "$COMMENT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "- Coverage: ${COV_PCT}%" >> comment.txt
+          echo "" >> comment.txt
+          echo "**Commit:** \`${GITHUB_SHA:0:8}\`" >> comment.txt
+          echo "**Branch:** \`${GITHUB_REF_NAME}\`" >> comment.txt
+          echo "" >> comment.txt
+          echo "---" >> comment.txt
+          echo "_Automated test results posted by CI_" >> comment.txt
+          cat comment.txt
 
       - name: Post comment to PR
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
+            const comment = fs.readFileSync('comment.txt', 'utf8');
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: process.env.comment
-            })
+              body: comment
+            });
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Stage 4: Trivy config scan (runs once, not per-image)
