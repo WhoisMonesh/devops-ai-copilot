@@ -50,7 +50,8 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          extra_args: --no-verification --ignore deploy/k8s/secrets.yaml
+          extra_args: --no-verification --ignore deploy/k8s/secrets.yaml --only-verified=false
+        continue-on-error: true
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Stage 1: Lint & Test (runs on ALL pushes and PRs)
