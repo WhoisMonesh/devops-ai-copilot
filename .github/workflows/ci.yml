@@ -53,6 +53,19 @@ jobs:
           extra_args: --no-verification --ignore deploy/k8s/secrets.yaml --only-verified=false
         continue-on-error: true
 
+  commit-lint:
+    name: Commit Message Lint
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: webiny/action-conventional-commits@v1.1.0
+        continue-on-error: true
+
   # ─────────────────────────────────────────────────────────────────────────────
   # Stage 1: Lint & Test (runs on ALL pushes and PRs)
   # ─────────────────────────────────────────────────────────────────────────────
@@ -76,6 +89,10 @@ jobs:
           pip install ruff pytest pytest-cov
       - name: Lint all code (ruff)
         run: ruff check agent/ gui/
+      - name: Spell check (codespell)
+        run: |
+          pip install codespell
+          codespell --ignore-words=.codespell-ignore || true
       - name: Run full test suite
         run: |
           PYTHONPATH=. pytest tests/test_cache.py tests/test_permissions.py tests/test_llm_client.py::TestCircuitBreaker tests/test_llm_client.py::TestRetryWithBackoff::test_all_attempts_fail_raises tests/test_llm_client.py::TestRetryWithBackoff::test_retries_on_failure tests/test_llm_client.py::TestHealthCache tests/test_llm_client.py::TestTokenEstimation -v --tb=short --cov=agent --cov=gui --cov-report=xml --cov-report=term
@@ -91,7 +108,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage
           path: coverage.xml
@@ -205,7 +222,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.DOCAI }}
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -261,7 +278,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.DOCAI }}
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -311,27 +328,32 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Docker Scout
-        run: |
-          pip install docker-scout
-
-      - name: Pull Docker image
-        run: |
-          docker pull ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.DOCAI }}
 
       - name: Docker Scout CVE Scan
-        run: |
-          docker scout cve ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }} \
-            --format sarif \
-            --output docker-scout-cve-${{ matrix.image }}.sarif || true
+        uses: docker/scout-action@v1.20.3
+        with:
+          command: cves
+          image: ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
+          format: sarif
+          output: docker-scout-cve-${{ matrix.image }}.sarif
+          only-severities: critical,high
 
       - name: Docker Scout SBOM
-        run: |
-          docker scout sbom ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }} \
-            --output docker-scout-sbom-${{ matrix.image }}.json || true
+        uses: docker/scout-action@v1.20.3
+        with:
+          command: sbom
+          image: ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
+          format: json
+          output: docker-scout-sbom-${{ matrix.image }}.json
 
       - name: Upload Docker Scout results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: docker-scout-results-${{ matrix.image }}
           path: |
@@ -382,7 +404,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         if: always()
         with:
           name: coverage
@@ -450,7 +472,7 @@ jobs:
           format: sarif
           output: trivy-config-results.sarif
       - name: Upload config scan results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: trivy-config-results
           path: |
@@ -510,7 +532,7 @@ jobs:
         run: python3 scripts/generate_trivy_summary.py ${{ matrix.image }}
 
       - name: Upload Trivy scan results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: trivy-results-${{ matrix.image }}
           path: |
@@ -556,7 +578,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ github.sha }}
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: sbom-${{ matrix.image }}
           path: sbom-${{ matrix.image }}.spdx.json
@@ -578,14 +600,14 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download all Trivy artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: trivy-results-*
           path: trivy-results
           merge-multiple: true
 
       - name: Download all Docker Scout artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: docker-scout-results-*
           path: docker-scout-results
@@ -600,7 +622,7 @@ jobs:
         run: python3 scripts/generate_security_report.py
 
       - name: Upload combined security report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: security-report
           path: |
@@ -638,7 +660,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download security report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: security-report
           path: .

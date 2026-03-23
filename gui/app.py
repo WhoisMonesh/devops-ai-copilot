@@ -18,13 +18,57 @@ st.set_page_config(
 AGENT_URL = os.getenv("AGENT_URL", "http://agent:8000")
 API_KEY = os.getenv("AGENT_API_KEY", "")
 
+CHAT_HISTORY_FILE = os.path.expanduser("~/.chat_history.json")
+MAX_HISTORY_ENTRIES = 100
+
+def _load_chat_history():
+    """Load chat history from disk."""
+    if os.path.exists(CHAT_HISTORY_FILE):
+        try:
+            with open(CHAT_HISTORY_FILE) as f:
+                data = json.load(f)
+                return data[-MAX_HISTORY_ENTRIES:]
+        except Exception:
+            return []
+    return []
+
+def _save_chat_history(messages):
+    """Persist chat history to disk."""
+    try:
+        existing = []
+        if os.path.exists(CHAT_HISTORY_FILE):
+            with open(CHAT_HISTORY_FILE) as f:
+                existing = json.load(f)
+        existing = [m for m in existing if m.get("session_id") != st.session_state.get("session_id", "default")]
+        existing.extend(messages)
+        existing = existing[-MAX_HISTORY_ENTRIES:]
+        with open(CHAT_HISTORY_FILE, "w") as f:
+            json.dump(existing, f)
+    except Exception:
+        pass
+
+def _get_sessions():
+    """Return list of available session IDs from history."""
+    if not os.path.exists(CHAT_HISTORY_FILE):
+        return []
+    try:
+        with open(CHAT_HISTORY_FILE) as f:
+            data = json.load(f)
+        return sorted(set(m.get("session_id", "default") for m in data))
+    except Exception:
+        return []
+
 # ---------------------------------------------------------------------------
 # Session persistence via query params (Streamlit supports this via URL)
 # ---------------------------------------------------------------------------
 query_params = st.query_params
 _default_session = query_params.get("session", "default") if hasattr(query_params, "get") else "default"
 
-st.session_state.setdefault("messages", [])
+# Load persisted messages for this session, or start fresh
+_all_messages = _load_chat_history()
+_default_messages = [m for m in _all_messages if m.get("session_id") == _default_session]
+
+st.session_state.setdefault("messages", _default_messages)
 st.session_state.setdefault("metrics_history", [])
 st.session_state.setdefault("session_id", _default_session)
 st.session_state.setdefault("operation_mode", "read_write")
@@ -278,6 +322,23 @@ with st.sidebar:
     )
     st.session_state.session_id = session_id
 
+    # Load chat from history
+    sessions = _get_sessions()
+    if sessions:
+        with st.expander("📂 Load Chat History"):
+            for s in sessions:
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.caption(f"Session: `{s}`")
+                with col2:
+                    if st.button("Load", key=f"load_{s}"):
+                        all_msgs = _load_chat_history()
+                        st.session_state.messages = [m for m in all_msgs if m.get("session_id") == s]
+                        st.session_state.session_id = s
+                        st.rerun()
+
+    st.divider()
+
     if st.button("🔄 Refresh"):
         st.rerun()
 
@@ -334,7 +395,7 @@ if page == "💬 Chat":
     # Handle quick action button clicks
     if "quick_action" in st.session_state:
         action = st.session_state.pop("quick_action")
-        st.session_state.messages.append({"role": "user", "content": action})
+        st.session_state.messages.append({"role": "user", "content": action, "session_id": st.session_state.session_id})
         with st.chat_message("user"):
             st.markdown(action)
         with st.chat_message("assistant"):
@@ -358,12 +419,13 @@ if page == "💬 Chat":
             with col3:
                 if result.get("tool_used"):
                     st.caption(f"🔧 `{result['tool_used']}`")
-            st.session_state.messages.append({"role": "assistant", "content": answer, "metadata": meta})
+            st.session_state.messages.append({"role": "assistant", "content": answer, "metadata": meta, "session_id": st.session_state.session_id})
+            _save_chat_history(st.session_state.messages)
 
     # Chat input
     if prompt := st.chat_input("e.g. Show Nginx error logs for the last hour..."):
         start_ts = time.time()
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "user", "content": prompt, "session_id": st.session_state.session_id})
         with st.chat_message("user"):
             st.markdown(prompt)
 
@@ -392,7 +454,8 @@ if page == "💬 Chat":
                 if result.get("tool_used"):
                     st.caption(f"🔧 `{result['tool_used']}`")
 
-            st.session_state.messages.append({"role": "assistant", "content": answer, "metadata": meta})
+            st.session_state.messages.append({"role": "assistant", "content": answer, "metadata": meta, "session_id": st.session_state.session_id})
+            _save_chat_history(st.session_state.messages)
 
     # Action row
     if st.session_state.messages:

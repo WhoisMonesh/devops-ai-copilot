@@ -68,7 +68,7 @@ jobs:
           PYTHONPATH=. pytest tests/test_cache.py tests/test_permissions.py tests/test_llm_client.py::TestCircuitBreaker tests/test_llm_client.py::TestRetryWithBackoff::test_all_attempts_fail_raises tests/test_llm_client.py::TestRetryWithBackoff::test_retries_on_failure tests/test_llm_client.py::TestHealthCache tests/test_llm_client.py::TestTokenEstimation -v --tb=short --cov=agent --cov=gui --cov-report=xml --cov-report=term
       - name: Upload coverage artifact
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'lint-test' || inputs.module == 'all')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage
           path: coverage.xml
@@ -121,7 +121,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Docker Scout CVE Scan
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'scout-scan' || inputs.module == 'all')
-        uses: docker/scout-action@v1
+        uses: docker/scout-action@v1.20.3
         with:
           command: cves
           image: test-${{ inputs.image }}:latest
@@ -130,19 +130,19 @@ jobs:
           only-severities: critical,high
       - name: Docker Scout SBOM
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'scout-scan' || inputs.module == 'all')
-        uses: docker/scout-action@v1
+        uses: docker/scout-action@v1.20.3
         with:
           command: sbom
           image: test-${{ inputs.image }}:latest
-          format: spdx
-          output: docker-scout-sbom-${{ inputs.image }}.spdx.json
+          format: json
+          output: docker-scout-sbom-${{ inputs.image }}.json
       - name: Upload Docker Scout results
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'scout-scan' || inputs.module == 'all')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: docker-scout-results-${{ inputs.image }}
           path: |
-            docker-scout-sbom-${{ inputs.image }}.spdx.json
+            docker-scout-sbom-${{ inputs.image }}.json
             docker-scout-cve-${{ inputs.image }}.sarif
           retention-days: 30
 
@@ -165,7 +165,7 @@ jobs:
           output: trivy-results-${{ inputs.image }}.sarif
       - name: Upload Trivy scan results
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'trivy-scan' || inputs.module == 'all')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: trivy-results-${{ inputs.image }}
           path: |
