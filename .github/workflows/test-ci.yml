@@ -29,53 +29,55 @@ env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/whoismonesh
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  TEST_MODULE: ${{ inputs.module }}
+  TEST_IMAGE: ${{ inputs.image }}
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
-  # Module: Lint & Test
+  # Single job that runs selected module (avoids inputs.if issue)
   # ─────────────────────────────────────────────────────────────────────────────
-  lint-test:
-    name: Lint & Test
+  run-tests:
+    name: 'Test: ${{ inputs.module }} (${{ inputs.image }})'
     runs-on: ubuntu-latest
-    if: inputs.module == 'lint-test' || inputs.module == 'all'
     steps:
       - uses: actions/checkout@v6
+
+      # ── Module: Lint & Test ──────────────────────────────────────────────
       - name: Set up Python
+        if: inputs.module == 'lint-test' || inputs.module == 'all'
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
       - name: Install all deps
+        if: inputs.module == 'lint-test' || inputs.module == 'all'
         run: |
           pip install --upgrade pip
           pip install -r agent/requirements.txt
           pip install -r gui/requirements.txt
           pip install ruff pytest pytest-cov
       - name: Lint all code (ruff)
+        if: inputs.module == 'lint-test' || inputs.module == 'all'
         run: ruff check agent/ gui/
       - name: Run full test suite
+        if: inputs.module == 'lint-test' || inputs.module == 'all'
         run: |
           PYTHONPATH=. pytest tests/test_cache.py tests/test_permissions.py tests/test_llm_client.py::TestCircuitBreaker tests/test_llm_client.py::TestRetryWithBackoff::test_all_attempts_fail_raises tests/test_llm_client.py::TestRetryWithBackoff::test_retries_on_failure tests/test_llm_client.py::TestHealthCache tests/test_llm_client.py::TestTokenEstimation -v --tb=short --cov=agent --cov=gui --cov-report=xml --cov-report=term
       - name: Upload coverage artifact
-        if: always()
+        if: inputs.module == 'lint-test' || inputs.module == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: coverage.xml
           retention-days: 7
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Module: Docker Build (single image)
-  # ─────────────────────────────────────────────────────────────────────────────
-  docker-build:
-    name: Docker Build (${{ inputs.image }})
-    runs-on: ubuntu-latest
-    if: inputs.module == 'docker-build' || inputs.module == 'all'
-    steps:
-      - uses: actions/checkout@v6
+      # ── Module: Docker Build ──────────────────────────────────────────────
       - name: Set up Docker Buildx
+        if: inputs.module == 'docker-build' || inputs.module == 'all'
         uses: docker/setup-buildx-action@v4
       - name: Build ${{ inputs.image }}
+        if: inputs.module == 'docker-build' || inputs.module == 'all'
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: ${{ inputs.image == 'ollama-qwen' && '.' || (inputs.image == 'gui' && 'gui' || '.') }}
@@ -86,21 +88,12 @@ jobs:
           platforms: linux/amd64
           build-args: ${{ inputs.image == 'ollama-qwen' && 'OLLAMA_MODEL=qwen2.5:3b' || '' }}
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Module: Docker Scout Scan
-  # ─────────────────────────────────────────────────────────────────────────────
-  scout-scan:
-    name: Docker Scout Scan (${{ inputs.image }})
-    runs-on: ubuntu-latest
-    needs: docker-build
-    if: inputs.module == 'scout-scan' || inputs.module == 'all'
-    steps:
-      - uses: actions/checkout@v6
-
+      # ── Module: Docker Scout Scan ────────────────────────────────────────
       - name: Pull test image
+        if: inputs.module == 'scout-scan' || inputs.module == 'all'
         run: docker pull test-${{ inputs.image }}:latest
-
       - name: Docker Scout CVE Scan
+        if: inputs.module == 'scout-scan' || inputs.module == 'all'
         uses: docker/scout-action@v1
         with:
           command: cves
@@ -108,16 +101,16 @@ jobs:
           format: sarif
           output: docker-scout-cve-${{ inputs.image }}.sarif
           only-severities: critical,high
-
       - name: Docker Scout SBOM
+        if: inputs.module == 'scout-scan' || inputs.module == 'all'
         uses: docker/scout-action@v1
         with:
           command: sbom
           image: test-${{ inputs.image }}:latest
           format: spdx-json
           output: docker-scout-sbom-${{ inputs.image }}.spdx.json
-
       - name: Upload Docker Scout results
+        if: inputs.module == 'scout-scan' || inputs.module == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: docker-scout-results-${{ inputs.image }}
@@ -126,18 +119,9 @@ jobs:
             docker-scout-cve-${{ inputs.image }}.sarif
           retention-days: 30
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Module: Trivy Image Scan
-  # ─────────────────────────────────────────────────────────────────────────────
-  trivy-scan:
-    name: Trivy Scan (${{ inputs.image }})
-    runs-on: ubuntu-latest
-    needs: docker-build
-    if: inputs.module == 'trivy-scan' || inputs.module == 'all'
-    steps:
-      - uses: actions/checkout@v6
-
+      # ── Module: Trivy Scan ──────────────────────────────────────────────
       - name: Run Trivy vulnerability scanner
+        if: inputs.module == 'trivy-scan' || inputs.module == 'all'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: test-${{ inputs.image }}:latest
@@ -145,15 +129,15 @@ jobs:
           output: trivy-results-${{ inputs.image }}.json
           severity: CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN
           vuln-type: os,library
-
       - name: Convert Trivy results to SARIF
+        if: inputs.module == 'trivy-scan' || inputs.module == 'all'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: test-${{ inputs.image }}:latest
           format: sarif
           output: trivy-results-${{ inputs.image }}.sarif
-
       - name: Upload Trivy scan results
+        if: inputs.module == 'trivy-scan' || inputs.module == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: trivy-results-${{ inputs.image }}
@@ -162,18 +146,12 @@ jobs:
             trivy-results-${{ inputs.image }}.sarif
           retention-days: 30
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Module: K8s Manifest Validation
-  # ─────────────────────────────────────────────────────────────────────────────
-  k8s-validate:
-    name: K8s Manifest Validation
-    runs-on: ubuntu-latest
-    if: inputs.module == 'k8s-validate' || inputs.module == 'all'
-    steps:
-      - uses: actions/checkout@v6
+      # ── Module: K8s Manifest Validation ─────────────────────────────────
       - name: Set up kubectl
+        if: inputs.module == 'k8s-validate' || inputs.module == 'all'
         uses: azure/setup-kubectl@v4
       - name: Validate Kubernetes manifests
+        if: inputs.module == 'k8s-validate' || inputs.module == 'all'
         run: |
           echo "Validating Kubernetes manifests (YAML syntax check)..."
           for f in deploy/k8s/*.yaml; do
