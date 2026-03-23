@@ -89,9 +89,7 @@ jobs:
           build-args: ${{ inputs.image == 'ollama-qwen' && 'OLLAMA_MODEL=qwen2.5:3b' || '' }}
 
       # ── Module: Docker Scout Scan ────────────────────────────────────────
-      - name: Pull test image
-        if: inputs.module == 'scout-scan' || inputs.module == 'all'
-        run: docker pull test-${{ inputs.image }}:latest
+      # Note: image already loaded locally via docker-build step above
       - name: Docker Scout CVE Scan
         if: inputs.module == 'scout-scan' || inputs.module == 'all'
         uses: docker/scout-action@v1
