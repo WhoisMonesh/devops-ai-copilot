@@ -17,7 +17,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/WhoisMonesh
+  IMAGE_PREFIX: ghcr.io/whoismonesh
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -546,7 +546,7 @@ jobs:
           IMAGE_TAG="ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}"
           docker pull "$IMAGE_TAG"
       - name: Generate SBOM with Syft
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.17.0
         with:
           image: "ghcr.io/whoismonesh/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}"
           format: spdx-json
