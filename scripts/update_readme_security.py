@@ -4,7 +4,7 @@
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 def main():
     if len(sys.argv) < 2:
@@ -35,7 +35,7 @@ def main():
     total_vulns = sum(sum(per_image[img].values()) for img in images)
     total_crit = sum(per_image[img]["CRITICAL"] for img in images)
     total_high = sum(per_image[img]["HIGH"] for img in images)
-    scan_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    scan_date = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d %H:%M IST")
 
     def make_key(img, sev):
         key = f"{img.upper()}_{sev}"
@@ -52,6 +52,12 @@ def main():
         replacements[f"<!--{key_prefix}_TOTAL-->"] = str(sum(per_image[img].values()))
     replacements["<!--COMMIT_SHA-->"] = commit[:12]
     replacements["<!--SCAN_DATE-->"] = scan_date
+
+    # Update image tag placeholders
+    for img in images:
+        img_upper = img.upper().replace("-", "_")
+        replacements[f"<!--{img_upper}_TAG-->"] = f"sha-{commit[:12]}"
+        replacements[f"<!--DH_{img_upper}_TAG-->"] = f"sha-{commit[:12]}"
 
     # Read current README
     with open(readme_path) as f:

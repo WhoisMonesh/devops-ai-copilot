@@ -4,7 +4,7 @@
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import re
 
 
@@ -54,7 +54,7 @@ def main():
     total_vulns = sum(per_image[img]["total"] for img in images)
     total_crit = sum(per_image[img]["CRITICAL"] for img in images)
     total_high = sum(per_image[img]["HIGH"] for img in images)
-    scan_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    scan_date = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d %H:%M IST")
 
     # Read current README
     with open(readme_path) as f:

@@ -3,12 +3,12 @@
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 def main():
     images = ["agent", "gui", "ollama-qwen", "ollama-mistral"]
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d %H:%M IST"),
         "repository": "WhoisMonesh/devops-ai-copilot",
         "commit": os.environ.get("GITHUB_SHA", "unknown"),
         "images": {}
@@ -56,7 +56,7 @@ def main():
 
     with open("security-report.md", "w") as f:
         f.write("# Security Scan Report\n\n")
-        f.write(f"**Generated:** {report['generated_at']}  \n")
+        f.write(f"**Generated:** {report['generated_at']}  <br>\n")
         f.write(f"**Commit:** `{report['commit']}`  \n")
         f.write(f"**Repository:** {report['repository']}\n\n")
         f.write("---\n\n")

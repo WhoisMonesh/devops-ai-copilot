@@ -75,6 +75,20 @@ jobs:
       - name: Set up Docker Buildx
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'docker-build' || inputs.module == 'all' || inputs.module == 'scout-scan' || inputs.module == 'trivy-scan')
         uses: docker/setup-buildx-action@v4
+      - name: Log in to Docker Hub
+        if: github.event_name == 'workflow_dispatch' && (inputs.module == 'docker-build' || inputs.module == 'all')
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Log in to GHCR
+        if: github.event_name == 'workflow_dispatch' && (inputs.module == 'docker-build' || inputs.module == 'all')
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.DOCAI }}
       - name: Build ${{ inputs.image }}
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'docker-build' || inputs.module == 'all' || inputs.module == 'scout-scan' || inputs.module == 'trivy-scan')
         id: build
@@ -82,9 +96,14 @@ jobs:
         with:
           context: ${{ inputs.image == 'ollama-qwen' && '.' || (inputs.image == 'gui' && 'gui' || '.') }}
           file: ${{ inputs.image == 'gui' && 'gui/Dockerfile' || (inputs.image == 'ollama-qwen' && 'deploy/Dockerfile.ollama' || 'deploy/Dockerfile.agent') }}
-          push: false
+          push: ${{ inputs.module == 'docker-build' || inputs.module == 'all' }}
           load: true
-          tags: test-${{ inputs.image }}:latest
+          tags: |
+            test-${{ inputs.image }}:latest
+            docker.io/whoismatrix/devops-ai-copilot-${{ inputs.image }}:latest
+            docker.io/whoismatrix/devops-ai-copilot-${{ inputs.image }}:sha-${{ github.sha }}
+            ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-${{ inputs.image }}:latest
+            ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-${{ inputs.image }}:sha-${{ github.sha }}
           platforms: linux/amd64
           build-args: ${{ inputs.image == 'ollama-qwen' && 'OLLAMA_MODEL=qwen2.5:3b' || '' }}
 

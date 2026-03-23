@@ -48,6 +48,28 @@ Ask things like:
 
 ---
 
+## Docker Images
+
+All images are built and pushed on every merge to `main`.
+
+| Component | GHCR | Docker Hub |
+|-----------|------|------------|
+| `devops-ai-copilot-agent` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-agent:<!--AGENT_TAG-->` | `docker.io/whoismatrix/devops-ai-copilot-agent:<!--DH_AGENT_TAG-->` |
+| `devops-ai-copilot-gui` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-gui:<!--GUI_TAG-->` | `docker.io/whoismatrix/devops-ai-copilot-gui:<!--DH_GUI_TAG-->` |
+| `devops-ai-copilot-ollama-qwen` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-ollama-qwen:<!--OLLAMA_QWEN_TAG-->` | `docker.io/whoismatrix/devops-ai-copilot-ollama-qwen:<!--DH_OLLAMA_QWEN_TAG-->` |
+| `devops-ai-copilot-ollama-mistral` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-ollama-mistral:<!--OLLAMA_MISTRAL_TAG-->` | `docker.io/whoismatrix/devops-ai-copilot-ollama-mistral:<!--DH_OLLAMA_MISTRAL_TAG-->` |
+
+**Pull example:**
+```bash
+# From GHCR
+docker pull ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-agent:latest
+
+# From Docker Hub
+docker pull docker.io/whoismatrix/devops-ai-copilot-agent:latest
+```
+
+---
+
 ## Screenshots
 
 ![App Screenshot](AppWorkScreenshot.png)
@@ -298,16 +320,20 @@ Infrastructure-as-Code plan, apply, and state queries.
 
 ## Security Scan
 
-> Scanned with [Trivy](https://github.com/aquasecurity/trivy) on every push to `main`.
+> Scanned with [Trivy](https://github.com/aquasecurity/trivy) and [Docker Scout](https://docker.com/blog/announcing-docker-scout/) on every push to `main`.
+
+### Trivy Scan
 
 | Image | Critical | High | Medium | Low | Total |
 |-------|----------|------|--------|-----|-------|
-| `agent` | 0 | 0 | 3 | 75 | 78 |
-| `gui` | 0 | 0 | 14 | 103 | 118 |
-| `ollama-qwen` | 1 | 8 | 26 | 9 | 44 |
-| `ollama-mistral` | 1 | 8 | 26 | 9 | 44 |
+| `agent` | <!--AGENT_CRITICAL--> | <!--AGENT_HIGH--> | <!--AGENT_MEDIUM--> | <!--AGENT_LOW--> | <!--AGENT_TOTAL--> |
+| `gui` | <!--GUI_CRITICAL--> | <!--GUI_HIGH--> | <!--GUI_MEDIUM--> | <!--GUI_LOW--> | <!--GUI_TOTAL--> |
+| `ollama-qwen` | <!--OLLAMA_QWEN_CRITICAL--> | <!--OLLAMA_QWEN_HIGH--> | <!--OLLAMA_QWEN_MEDIUM--> | <!--OLLAMA_QWEN_LOW--> | <!--OLLAMA_QWEN_TOTAL--> |
+| `ollama-mistral` | <!--OLLAMA_MISTRAL_CRITICAL--> | <!--OLLAMA_MISTRAL_HIGH--> | <!--OLLAMA_MISTRAL_MEDIUM--> | <!--OLLAMA_MISTRAL_LOW--> | <!--OLLAMA_MISTRAL_TOTAL--> |
 
-**Latest scan:** `d1100dbf5125` 2026-03-22 05:24 UTC
+**Latest Trivy scan:** `<!--COMMIT_SHA-->` <!--SCAN_DATE-->
+
+<!--DOCKER_SCOUT_RESULTS-->
 
 ---
 
