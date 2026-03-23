@@ -73,10 +73,10 @@ jobs:
 
       # ── Module: Docker Build ──────────────────────────────────────────────
       - name: Set up Docker Buildx
-        if: inputs.module == 'docker-build' || inputs.module == 'all'
+        if: inputs.module == 'docker-build' || inputs.module == 'all' || inputs.module == 'scout-scan' || inputs.module == 'trivy-scan'
         uses: docker/setup-buildx-action@v4
       - name: Build ${{ inputs.image }}
-        if: inputs.module == 'docker-build' || inputs.module == 'all'
+        if: inputs.module == 'docker-build' || inputs.module == 'all' || inputs.module == 'scout-scan' || inputs.module == 'trivy-scan'
         id: build
         uses: docker/build-push-action@v7
         with:
