@@ -113,7 +113,7 @@ jobs:
           echo "Validating Kubernetes manifests (YAML syntax check)..."
           for f in deploy/k8s/*.yaml; do
             echo "Checking $f..."
-            python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>/dev/null || { echo "YAML syntax error in $f"; exit 1; }
+            python3 -c "import yaml; list(yaml.safe_load_all(open('$f')))" 2>/dev/null || { echo "YAML syntax error in $f"; exit 1; }
           done
           echo "All Kubernetes manifests have valid YAML syntax!"
 
