@@ -309,7 +309,7 @@ if page == "💬 Chat":
     for idx, action in enumerate(quick_actions):
         with cols[idx % 3]:
             if st.button(action, key=f"qa_{idx}"):
-                st.session_state.messages.append({"role": "user", "content": action})
+                st.session_state["quick_action"] = action
 
     st.divider()
 
@@ -330,6 +330,35 @@ if page == "💬 Chat":
                     badges.append(f"🔧 `{meta['tool_used']}`")
                 if badges:
                     st.caption(" | ".join(badges))
+
+    # Handle quick action button clicks
+    if "quick_action" in st.session_state:
+        action = st.session_state.pop("quick_action")
+        st.session_state.messages.append({"role": "user", "content": action})
+        with st.chat_message("user"):
+            st.markdown(action)
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                result = ask_agent(action, session_id=st.session_state.session_id)
+            elapsed = time.time()
+            answer = result.get("answer", result.get("error", "No response."))
+            st.markdown(answer)
+            meta = {
+                "cached": result.get("cached", False),
+                "corr_id": result.get("corr_id", ""),
+                "latency": elapsed,
+                "tool_used": result.get("tool_used"),
+            }
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if result.get("cached"):
+                    st.caption(":clock1: Cached")
+            with col2:
+                st.caption(f"⏱ {elapsed:.1f}s")
+            with col3:
+                if result.get("tool_used"):
+                    st.caption(f"🔧 `{result['tool_used']}`")
+            st.session_state.messages.append({"role": "assistant", "content": answer, "metadata": meta})
 
     # Chat input
     if prompt := st.chat_input("e.g. Show Nginx error logs for the last hour..."):
@@ -533,7 +562,7 @@ elif page == "📚 Knowledge Base":
     # Search
     search_col1, search_col2 = st.columns([3, 1])
     with search_col1:
-        kb_query = st.text_input("🔍 Search knowledge base", placeholder="e.g. 'nginx restart procedure'")
+        kb_query = st.text_input("🔍 Search knowledge base", placeholder="e.g. 'nginx restart procedure'", value=st.session_state.get("kb_search_query", ""), key="kb_search_input")
     with search_col2:
         top_k = st.selectbox("Top K", [3, 5, 10], index=1)
 
@@ -577,6 +606,7 @@ elif page == "📚 Knowledge Base":
         with qcols[idx % 3]:
             if st.button(f"🔍 {q}", key=f"kb_q_{idx}"):
                 st.session_state["kb_search_query"] = q
+                st.session_state["kb_search_input"] = q
                 st.rerun()
 
 
