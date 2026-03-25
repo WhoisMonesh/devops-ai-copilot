@@ -108,7 +108,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage.xml
@@ -353,7 +353,7 @@ jobs:
           output: docker-scout-sbom-${{ matrix.image }}.json
 
       - name: Upload Docker Scout results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: docker-scout-results-${{ matrix.image }}
           path: |
@@ -472,7 +472,7 @@ jobs:
           format: sarif
           output: trivy-config-results.sarif
       - name: Upload config scan results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-config-results
           path: |
@@ -532,7 +532,7 @@ jobs:
         run: python3 scripts/generate_trivy_summary.py ${{ matrix.image }}
 
       - name: Upload Trivy scan results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-results-${{ matrix.image }}
           path: |
@@ -578,7 +578,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ github.sha }}
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ matrix.image }}
           path: sbom-${{ matrix.image }}.spdx.json
@@ -622,7 +622,7 @@ jobs:
         run: python3 scripts/generate_security_report.py
 
       - name: Upload combined security report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: security-report
           path: |
