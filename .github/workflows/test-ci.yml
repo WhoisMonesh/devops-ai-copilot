@@ -176,7 +176,7 @@ jobs:
       # ── Module: K8s Manifest Validation ─────────────────────────────────
       - name: Set up kubectl
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'k8s-validate' || inputs.module == 'all')
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
       - name: Validate Kubernetes manifests
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'k8s-validate' || inputs.module == 'all')
         run: |
