@@ -98,7 +98,7 @@ jobs:
           PYTHONPATH=. pytest tests/test_cache.py tests/test_permissions.py tests/test_llm_client.py::TestCircuitBreaker tests/test_llm_client.py::TestRetryWithBackoff::test_all_attempts_fail_raises tests/test_llm_client.py::TestRetryWithBackoff::test_retries_on_failure tests/test_llm_client.py::TestHealthCache tests/test_llm_client.py::TestTokenEstimation -v --tb=short --cov=agent --cov=gui --cov-report=xml --cov-report=term
       - name: Upload coverage to Codecov
         if: github.event_name != 'pull_request'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: ./coverage.xml
           flags: unittests
