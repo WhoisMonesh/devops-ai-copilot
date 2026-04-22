@@ -121,7 +121,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Docker Scout CVE Scan
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'scout-scan' || inputs.module == 'all')
-        uses: docker/scout-action@v1.20.3
+        uses: docker/scout-action@v1.20.4
         with:
           command: cves
           image: test-${{ inputs.image }}:latest
@@ -130,7 +130,7 @@ jobs:
           only-severities: critical,high
       - name: Docker Scout SBOM
         if: github.event_name == 'workflow_dispatch' && (inputs.module == 'scout-scan' || inputs.module == 'all')
-        uses: docker/scout-action@v1.20.3
+        uses: docker/scout-action@v1.20.4
         with:
           command: sbom
           image: test-${{ inputs.image }}:latest
