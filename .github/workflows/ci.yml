@@ -127,7 +127,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
       - name: Validate Kubernetes manifests
         run: |
           echo "Validating Kubernetes manifests (YAML syntax check)..."
