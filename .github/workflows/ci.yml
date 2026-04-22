@@ -336,7 +336,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Docker Scout CVE Scan
-        uses: docker/scout-action@v1.20.3
+        uses: docker/scout-action@v1.20.4
         with:
           command: cves
           image: docker.io/whoismatrix/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
@@ -345,7 +345,7 @@ jobs:
           only-severities: critical,high
 
       - name: Docker Scout SBOM
-        uses: docker/scout-action@v1.20.3
+        uses: docker/scout-action@v1.20.4
         with:
           command: sbom
           image: docker.io/whoismatrix/devops-ai-copilot-${{ matrix.image }}:sha-${{ github.sha }}
