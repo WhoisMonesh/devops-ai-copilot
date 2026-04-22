@@ -642,7 +642,7 @@ jobs:
         run: python3 scripts/update_readme_scout.py
 
       - name: Commit updated README
-        uses: stefanzweifel/git-auto-commit-action@v6
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "docs: update README with latest security scan results"
           file_pattern: README.md
