@@ -26,7 +26,7 @@ boto3>=1.34.0
 kubernetes>=30.0.0
 
 # ── Elasticsearch / Kibana ───────────────────────────────────────────────────
-elasticsearch>=8.13.0
+elasticsearch>=9.3.0
 
 # ── HTTP requests (Jenkins, Artifactory, Nginx, Kibana REST) ─────────────────
 requests>=2.32.0
