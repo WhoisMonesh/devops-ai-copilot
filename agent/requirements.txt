@@ -12,7 +12,7 @@ langchain-core>=0.3.0,<0.4.0
 langchain-community>=0.3.0,<0.4.0
 
 # ── LLM Provider 1: Ollama (local in-cluster) ───────────────────────────────
-ollama>=0.6.0
+ollama>=0.6.1
 
 # ── LLM Provider 2: Vertex AI / Gemini (GCP service-account JSON) ───────────
 google-cloud-aiplatform>=1.140.0
