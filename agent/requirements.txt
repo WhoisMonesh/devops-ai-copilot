@@ -29,7 +29,7 @@ kubernetes>=30.0.0
 elasticsearch>=8.13.0
 
 # ── HTTP requests (Jenkins, Artifactory, Nginx, Kibana REST) ─────────────────
-requests>=2.32.0
+requests>=2.33.1
 urllib3>=2.2.0
 
 # ── Utilities ────────────────────────────────────────────────────────────────
