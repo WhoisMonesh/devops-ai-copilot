@@ -3,10 +3,12 @@ import requests
 import os
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import logging
+logger = logging.getLogger(__name__)
 
 st.set_page_config(
     page_title="DevOps AI Copilot",
@@ -28,7 +30,8 @@ def _load_chat_history():
             with open(CHAT_HISTORY_FILE) as f:
                 data = json.load(f)
                 return data[-MAX_HISTORY_ENTRIES:]
-        except Exception:
+        except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Failed to load chat history: {e}")
             return []
     return []
 
@@ -44,8 +47,8 @@ def _save_chat_history(messages):
         existing = existing[-MAX_HISTORY_ENTRIES:]
         with open(CHAT_HISTORY_FILE, "w") as f:
             json.dump(existing, f)
-    except Exception:
-        pass
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning(f"Failed to save chat history: {e}")
 
 def _get_sessions():
     """Return list of available session IDs from history."""
@@ -55,7 +58,8 @@ def _get_sessions():
         with open(CHAT_HISTORY_FILE) as f:
             data = json.load(f)
         return sorted(set(m.get("session_id", "default") for m in data))
-    except Exception:
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning(f"Failed to load sessions: {e}")
         return []
 
 # ---------------------------------------------------------------------------
@@ -131,7 +135,8 @@ def get_health():
     try:
         r = requests.get(f"{AGENT_URL}/health", timeout=5, headers=_headers())
         return r.json()
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Health check failed: {e}")
         return {"status": "unreachable", "error": str(e)}
 
 
@@ -153,7 +158,8 @@ def get_kb_stats():
     try:
         r = requests.get(f"{AGENT_URL}/kb/stats", timeout=5, headers=_headers())
         return r.json() if r.ok else {}
-    except Exception:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"KB stats request failed: {e}")
         return {}
 
 
@@ -161,7 +167,8 @@ def get_config():
     try:
         r = requests.get(f"{AGENT_URL}/config", timeout=5, headers=_headers())
         return r.json()
-    except Exception:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Config request failed: {e}")
         return {}
 
 
@@ -169,7 +176,8 @@ def update_config(payload):
     try:
         r = requests.post(f"{AGENT_URL}/config", json=payload, timeout=10, headers=_headers())
         return r.json()
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Update config request failed: {e}")
         return {"error": str(e)}
 
 
@@ -185,7 +193,8 @@ def ask_agent(question, context="", session_id="default"):
         return r.json()
     except requests.exceptions.Timeout:
         return {"error": "Request timed out after 300s. The query is too complex or LLM is overloaded.", "answer": "Request timed out."}
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Agent request failed: {e}")
         return {"error": str(e), "answer": f"Agent unreachable: {e}"}
 
 
@@ -193,7 +202,8 @@ def get_tools():
     try:
         r = requests.get(f"{AGENT_URL}/tools", timeout=5, headers=_headers())
         return r.json() if isinstance(r.json(), list) else r.json().get("tools", [])
-    except Exception:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Tools request failed: {e}")
         return []
 
 
@@ -201,7 +211,8 @@ def get_metrics():
     try:
         r = requests.get(f"{AGENT_URL}/metrics", timeout=5, headers=_headers())
         return r.text
-    except Exception:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Metrics request failed: {e}")
         return ""
 
 
@@ -209,7 +220,8 @@ def get_cache_stats():
     try:
         r = requests.get(f"{AGENT_URL}/cache/stats", timeout=5, headers=_headers())
         return r.json()
-    except Exception:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Cache stats request failed: {e}")
         return {}
 
 
@@ -217,7 +229,8 @@ def get_permissions_status():
     try:
         r = requests.get(f"{AGENT_URL}/permissions/status", timeout=5, headers=_headers())
         return r.json()
-    except Exception:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Permissions status request failed: {e}")
         return {}
 
 
@@ -225,7 +238,8 @@ def set_operation_mode(mode):
     try:
         r = requests.post(f"{AGENT_URL}/permissions/mode", json={"mode": mode}, timeout=5, headers=_headers())
         return r.json()
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Set operation mode request failed: {e}")
         return {"error": str(e)}
 
 
@@ -233,7 +247,8 @@ def check_tool_permission(tool_name):
     try:
         r = requests.get(f"{AGENT_URL}/permissions/check/{tool_name}", timeout=5, headers=_headers())
         return r.json()
-    except Exception:
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Check tool permission request failed: {e}")
         return {}
 
 
@@ -342,7 +357,7 @@ with st.sidebar:
     if st.button("🔄 Refresh"):
         st.rerun()
 
-    st.caption(f"Last refresh: {datetime.now().strftime('%H:%M:%S')}")
+    st.caption(f"Last refresh: {datetime.now(timezone.utc).strftime('%H:%M:%S')}")
 
 
 # ---------------------------------------------------------------------------
@@ -504,7 +519,8 @@ elif page == "📊 Dashboard":
                     color = "green" if 200 <= code < 300 else "orange" if code < 500 else "red"
                     st.markdown(f"**{name}**")
                     st.markdown(f":{color}[{code}]")
-                except Exception:
+                except requests.exceptions.RequestException as e:
+                    logger.warning(f"Health check for {name} failed: {e}")
                     st.markdown(f"**{name}**")
                     st.markdown(":red[unreachable]")
             elif always_show:
@@ -548,7 +564,8 @@ elif page == "📊 Dashboard":
                     selected_dash = next((d for d in dash_data if d.get("title") == selected), None)
                     if selected_dash:
                         st.info(f"Dashboard: {grafana_url}{selected_dash.get('url', '')}")
-        except Exception as e:
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Grafana dashboards request failed: {e}")
             st.warning(f"Could not fetch Grafana dashboards: {e}")
     else:
         st.info("Configure `grafana_url` to enable Grafana integration.")
@@ -650,7 +667,8 @@ elif page == "📚 Knowledge Base":
                             st.markdown(f"**Content:**\n\n{res.get('content', '')[:1000]}")
                 else:
                     st.error(f"Search failed: {r.status_code}")
-            except Exception as e:
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"KB search request failed: {e}")
                 st.error(f"Search error: {e}")
 
     st.divider()
@@ -753,7 +771,8 @@ elif page == "⚙️ Configuration":
                 try:
                     inv = requests.post(f"{AGENT_URL}/cache/invalidate", headers=_headers())
                     st.success("Cache invalidated!" if inv.ok else "Failed")
-                except Exception as e:
+                except requests.exceptions.RequestException as e:
+                    logger.warning(f"Cache invalidate request failed: {e}")
                     st.error(f"Error: {e}")
             payload = {"cache_ttl": cache_ttl, "cache_max_size": cache_max}
 
