@@ -1,6 +1,8 @@
 # agent/__main__.py - Entrypoint when running `python -m agent.main`
-import uvicorn
+
 from agent.config import config
+
+import uvicorn
 
 if __name__ == "__main__":
     uvicorn.run(
