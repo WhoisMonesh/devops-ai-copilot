@@ -25,9 +25,11 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: gui
-          image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-gui:latest
+          image: ghcr.io/${{ github.repository_owner }}/devops-ai-copilot/devops-ai-copilot-gui:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8501

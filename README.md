@@ -54,10 +54,9 @@ All images are built and pushed on every merge to `main`.
 
 | Component | GHCR | Docker Hub |
 |-----------|------|------------|
-| `devops-ai-copilot-agent` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-agent:sha-d1226289dee5` | `docker.io/whoismatrix/devops-ai-copilot-agent:sha-d1226289dee5` |
-| `devops-ai-copilot-gui` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-gui:sha-d1226289dee5` | `docker.io/whoismatrix/devops-ai-copilot-gui:sha-d1226289dee5` |
-| `devops-ai-copilot-ollama-qwen` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-ollama-qwen:sha-d1226289dee5` | `docker.io/whoismatrix/devops-ai-copilot-ollama-qwen:sha-d1226289dee5` |
-| `devops-ai-copilot-ollama-mistral` | `ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-ollama-mistral:sha-d1226289dee5` | `docker.io/whoismatrix/devops-ai-copilot-ollama-mistral:sha-d1226289dee5` |
+| `devops-ai-copilot-agent` | `ghcr.io/${{ github.repository_owner }}/devops-ai-copilot/devops-ai-copilot-agent:latest` | `docker.io/whoismatrix/devops-ai-copilot-agent:latest` |
+| `devops-ai-copilot-gui` | `ghcr.io/${{ github.repository_owner }}/devops-ai-copilot/devops-ai-copilot-gui:latest` | `docker.io/whoismatrix/devops-ai-copilot-gui:latest` |
+| `devops-ai-copilot-ollama` | `ghcr.io/${{ github.repository_owner }}/devops-ai-copilot/devops-ai-copilot-ollama:latest` | `docker.io/whoismatrix/devops-ai-copilot-ollama:latest` |
 
 **Pull example:**
 ```bash

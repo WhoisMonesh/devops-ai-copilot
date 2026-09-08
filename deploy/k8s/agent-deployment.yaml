@@ -41,9 +41,11 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: agent
-          image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-agent:latest
+          image: ghcr.io/${{ github.repository_owner }}/devops-ai-copilot/devops-ai-copilot-agent:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

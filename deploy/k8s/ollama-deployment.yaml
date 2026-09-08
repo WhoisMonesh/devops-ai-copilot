@@ -25,7 +25,7 @@ spec:
       containers:
         - name: ollama
           # Use GHCR image with pre-downloaded model for offline capability
-          image: ghcr.io/WhoisMonesh/devops-ai-copilot/devops-ai-copilot-ollama:latest
+          image: ghcr.io/whoismonesh/devops-ai-copilot/devops-ai-copilot-ollama:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 11434
