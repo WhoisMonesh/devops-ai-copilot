@@ -3,7 +3,7 @@
 
 from .config import config
 
-__all__ = ["config", "Orchestrator"]
+__all__ = ["Orchestrator", "config"]
 
 
 def __getattr__(name: str):
