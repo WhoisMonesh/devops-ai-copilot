@@ -1,13 +1,15 @@
-import streamlit as st
-import requests
-import os
 import json
+import logging
+import os
 import time
 from datetime import datetime, timezone
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import logging
+import requests
+import streamlit as st
+
 logger = logging.getLogger(__name__)
 
 st.set_page_config(
@@ -57,7 +59,7 @@ def _get_sessions():
     try:
         with open(CHAT_HISTORY_FILE) as f:
             data = json.load(f)
-        return sorted(set(m.get("session_id", "default") for m in data))
+        return sorted({m.get("session_id", "default") for m in data})
     except (OSError, json.JSONDecodeError) as e:
         logger.warning(f"Failed to load sessions: {e}")
         return []
@@ -257,7 +259,7 @@ def render_llm_status_indicator(llm_health: dict):
     providers = llm_health.get("providers", {})
     primary = llm_health.get("provider", "unknown")
 
-    for name, info in providers.items():
+    for name, info in providers.items():  # noqa: PERF102
         if info.get("is_primary"):
             cb_state = info.get("circuit_breaker", "unknown")
             status = info.get("status", "unknown")

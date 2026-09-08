@@ -4,12 +4,11 @@
 import logging
 import socket
 import ssl
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
 
 import requests
-from OpenSSL import crypto
 from langchain_core.tools import tool
+from OpenSSL import crypto
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ def _get_ssl_context():
     return ctx
 
 
-def _fetch_cert(host: str, port: int = 443, timeout: int = 10) -> Optional[dict]:
+def _fetch_cert(host: str, port: int = 443, timeout: int = 10) -> dict | None:
     """Fetch SSL certificate from a host and return parsed info."""
     try:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -30,29 +29,29 @@ def _fetch_cert(host: str, port: int = 443, timeout: int = 10) -> Optional[dict]
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         with socket.create_connection((host, port), timeout=timeout) as sock:
-            with ctx.wrap_socket(sock, server_hostname=host) as ssock:
-                cert_der = ssock.getpeercert(binary_form=True)
-                x509 = crypto.load_certificate(crypto.FILETYPE_ASN1, cert_der)
-                return {
-                    "subject": dict(x509.get_subject().get_components()),
-                    "issuer": dict(x509.get_issuer().get_components()),
-                    "serial_number": x509.get_serial_number(),
-                    "not_before": datetime.strptime(
-                        x509.get_notBefore().decode("ascii"), "%Y%m%d%H%M%SZ"
-                    ),
-                    "not_after": datetime.strptime(
-                        x509.get_notAfter().decode("ascii"), "%Y%m%d%H%M%SZ"
-                    ),
-                    "version": x509.get_version(),
-                    "signature_algorithm": x509.get_signature_algorithm().decode(),
-                }
+            ssock = ctx.wrap_socket(sock, server_hostname=host)
+            cert_der = ssock.getpeercert(binary_form=True)
+            x509 = crypto.load_certificate(crypto.FILETYPE_ASN1, cert_der)
+            return {
+                "subject": dict(x509.get_subject().get_components()),
+                "issuer": dict(x509.get_issuer().get_components()),
+                "serial_number": x509.get_serial_number(),
+                "not_before": datetime.strptime(
+                    x509.get_notBefore().decode("ascii"), "%Y%m%d%H%M%S"
+                ).replace(tzinfo=timezone.utc),
+                "not_after": datetime.strptime(
+                    x509.get_notAfter().decode("ascii"), "%Y%m%d%H%M%S"
+                ).replace(tzinfo=timezone.utc),
+                "version": x509.get_version(),
+                "signature_algorithm": x509.get_signature_algorithm().decode(),
+            }
     except (ssl.SSLError, OSError):
         # SSL handshake/verify errors or socket connection errors
         return {"error": "SSL/connection error"}
 
 
 def _days_until_expiry(not_after: datetime) -> int:
-    return (not_after - datetime.now()).days
+    return (not_after - datetime.now(timezone.utc)).days
 
 
 @tool
@@ -155,7 +154,7 @@ def ssl_get_cert_chain(host: str, port: int = 443) -> str:
                 f"  Issuer CN: {issuer_cn}",
                 f"  Version: {x509.get_version() + 1}",
                 f"  Serial: {hex(x509.get_serial_number())}",
-                f"  Valid: {datetime.strptime(x509.get_notBefore().decode('ascii'), '%Y%m%d%H%M%SZ').strftime('%Y-%m-%d')} to {datetime.strptime(x509.get_notAfter().decode('ascii'), '%Y%m%d%H%M%SZ').strftime('%Y%m-%d')}",
+                f"  Valid: {datetime.strptime(x509.get_notBefore().decode('ascii'), '%Y%m%d%H%M%S').replace(tzinfo=timezone.utc).strftime('%Y-%m-%d')} to {datetime.strptime(x509.get_notAfter().decode('ascii'), '%Y%m%d%H%M%S').replace(tzinfo=timezone.utc).strftime('%Y-%m-%d')}",
             ]
             return "\n".join(lines)
     except (ssl.SSLError, OSError):
@@ -181,7 +180,7 @@ def dns_lookup(hostname: str, record_type: str = "A") -> str:
             lines.append(f"  -> {rdata}")
 
         return "\n".join(lines)
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         # Intentionally broad: dns.resolver raises NXDOMAIN, NoAnswer, Timeout, NoNameservers
         return f"DNS lookup failed for {hostname}"
 

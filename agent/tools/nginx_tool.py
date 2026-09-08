@@ -1,11 +1,12 @@
 # agent/tools/nginx_tool.py - Nginx Access/Error Log Tool
+import json
+import logging
 import os
 import re
-import json
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
 from langchain.tools import tool
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +39,12 @@ def get_nginx_5xx_errors(last_minutes: int = 30) -> str:
     try:
         lines = _read_last_lines(NGINX_ACCESS_LOG)
         errors = []
-        cutoff = datetime.utcnow() - timedelta(minutes=last_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=last_minutes)
         for line in lines:
             m = LOG_PATTERN.match(line)
             if m and m.group("status").startswith("5"):
                 try:
-                    ts = datetime.strptime(m.group("time").split()[0], "%d/%b/%Y:%H:%M:%S")
+                    ts = datetime.strptime(m.group("time").split()[0], "%d/%b/%Y:%H:%M:%S").replace(tzinfo=timezone.utc)
                     if ts >= cutoff:
                         errors.append({
                             "ip": m.group("ip"),
@@ -73,12 +74,12 @@ def get_nginx_top_endpoints(last_minutes: int = 60, top_n: int = 10) -> str:
     try:
         lines = _read_last_lines(NGINX_ACCESS_LOG)
         paths = []
-        cutoff = datetime.utcnow() - timedelta(minutes=last_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=last_minutes)
         for line in lines:
             m = LOG_PATTERN.match(line)
             if m:
                 try:
-                    ts = datetime.strptime(m.group("time").split()[0], "%d/%b/%Y:%H:%M:%S")
+                    ts = datetime.strptime(m.group("time").split()[0], "%d/%b/%Y:%H:%M:%S").replace(tzinfo=timezone.utc)
                     if ts >= cutoff:
                         paths.append(m.group("path").split("?")[0])
                 except ValueError:
@@ -102,12 +103,12 @@ def get_nginx_status_summary(last_minutes: int = 60) -> str:
         lines = _read_last_lines(NGINX_ACCESS_LOG)
         statuses = []
         ips = []
-        cutoff = datetime.utcnow() - timedelta(minutes=last_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=last_minutes)
         for line in lines:
             m = LOG_PATTERN.match(line)
             if m:
                 try:
-                    ts = datetime.strptime(m.group("time").split()[0], "%d/%b/%Y:%H:%M:%S")
+                    ts = datetime.strptime(m.group("time").split()[0], "%d/%b/%Y:%H:%M:%S").replace(tzinfo=timezone.utc)
                     if ts >= cutoff:
                         statuses.append(m.group("status"))
                         ips.append(m.group("ip"))
