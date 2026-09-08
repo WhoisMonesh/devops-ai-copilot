@@ -22,7 +22,7 @@ def llm_summarise(text: str, max_words: int = 150) -> str:
             f"{text[:8000]}"
         )
         return llm_client.chat(prompt)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: llm_client.chat may raise various exceptions depending on provider
         return ""
 
@@ -41,7 +41,7 @@ def llm_root_cause_analysis(error_log: str, service: Optional[str] = None) -> st
             f"{error_log[:8000]}"
         )
         return llm_client.chat(prompt)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: llm_client.chat may raise various exceptions depending on provider
         return ""
 
@@ -56,7 +56,7 @@ def llm_generate_runbook(task_description: str) -> str:
             f"Task: {task_description}"
         )
         return llm_client.chat(prompt)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: llm_client.chat may raise various exceptions depending on provider
         return ""
 
@@ -71,7 +71,7 @@ def llm_explain_k8s_error(error_message: str) -> str:
             f"Error: {error_message}"
         )
         return llm_client.chat(prompt)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: llm_client.chat may raise various exceptions depending on provider
         return ""
 
@@ -88,7 +88,7 @@ def llm_compare_configs(config_a: str, config_b: str, context: str = "") -> str:
             f"--- Config B ---\n{config_b[:4000]}"
         )
         return llm_client.chat(prompt)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: llm_client.chat may raise various exceptions depending on provider
         return ""
 

@@ -181,7 +181,7 @@ def dns_lookup(hostname: str, record_type: str = "A") -> str:
             lines.append(f"  -> {rdata}")
 
         return "\n".join(lines)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: dns.resolver raises NXDOMAIN, NoAnswer, Timeout, NoNameservers
         return f"DNS lookup failed for {hostname}"
 

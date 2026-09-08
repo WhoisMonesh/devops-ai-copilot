@@ -449,7 +449,7 @@ async def query(req: QueryRequest, request: Request):
             corr_id=result.get("corr_id", corr_id),
             latency_seconds=result.get("latency_seconds"),
         )
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: query endpoint may encounter orchestrator, LLM, or tool errors
         logger.error("[corr_id=%s] Query failed", corr_id)
         metrics.record_error("Exception", "query_endpoint")

@@ -121,7 +121,7 @@ def _retry(
             )
         try:
             return fn()
-        except Exception:
+        except Exception as e:  # noqa: BLE001
             # Intentionally broad: _retry wraps heterogeneous providers (httpx, boto3, google-auth)
             # and needs to retry on any failure type; last_error remains empty as exc binding is unused
             if attempt < max_attempts:
@@ -219,7 +219,7 @@ def _ollama_stream(prompt: str, system: str = "") -> Generator[str, None, None]:
                         except json.JSONDecodeError:
                             continue
         _cb("ollama").record_success()
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: stream may encounter httpx or OS-level errors; record failure and re-raise
         _cb("ollama").record_failure()
         raise
@@ -232,7 +232,7 @@ def _ollama_health() -> str:
                 r = client.get(f"{config.llm.ollama_base_url}/api/tags")
                 r.raise_for_status()
                 return "ok"
-        except Exception:
+        except Exception as e:  # noqa: BLE001
             # Intentionally broad: health check must handle httpx, DNS, connection errors
             return ""
     return _health_cached("ollama", _check)
@@ -244,7 +244,7 @@ def _ollama_list_models() -> list[str]:
             r = client.get(f"{config.llm.ollama_base_url}/api/tags")
             r.raise_for_status()
             return [m["name"] for m in r.json().get("models", [])]
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: list_models may encounter httpx or network errors
         return []
 
@@ -311,7 +311,7 @@ def _vertexai_health() -> str:
                 return "missing_project"
             _vertexai_credentials()
             return "ok"
-        except Exception:
+        except Exception as e:  # noqa: BLE001
             # Intentionally broad: health check must handle httpx, DNS, connection, auth errors
             return ""
     return _health_cached("vertexai", _check)
@@ -413,7 +413,7 @@ def _bedrock_health() -> str:
         try:
             _bedrock_client().list_foundation_models()
             return "ok"
-        except Exception:
+        except Exception as e:  # noqa: BLE001
             # Intentionally broad: health check must handle httpx, DNS, connection, auth errors
             return ""
     return _health_cached("bedrock", _check)

@@ -92,7 +92,7 @@ def get_secret(secret_id: str, force_refresh: bool = False) -> Dict[str, Any]:
         _cache[secret_id] = (now, data)
         logger.info("[Secrets] successfully fetched secret")
         return data
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Catches boto3/AWS errors from get_secret_value
         logger.error("[Secrets] failed to fetch secret")
         raise RuntimeError(f"Failed to fetch secret '{secret_id}'") from None

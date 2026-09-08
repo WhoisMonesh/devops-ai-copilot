@@ -38,7 +38,7 @@ def list_pods(namespace: str = "default") -> str:
         return json.dumps(result, indent=2)
     except ApiException as e:
         return f"K8s API error: {e}"
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: K8s client operations may raise various API or network errors
         pass
 
@@ -57,7 +57,7 @@ def get_pod_logs(pod_name: str, namespace: str = "default", tail_lines: int = 10
         return logs or "No logs found"
     except ApiException as e:
         return f"K8s API error: {e}"
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: K8s client operations may raise various API or network errors
         pass
 
@@ -99,7 +99,7 @@ def describe_pod(pod_name: str, namespace: str = "default") -> str:
         return json.dumps(info, indent=2)
     except ApiException as e:
         return f"K8s API error: {e}"
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: K8s client operations may raise various API or network errors
         pass
 
@@ -120,7 +120,7 @@ def get_deployments(namespace: str = "default") -> str:
                 "image": d.spec.template.spec.containers[0].image if d.spec.template.spec.containers else "unknown"
             })
         return json.dumps(result, indent=2)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: K8s client operations may raise various API or network errors
         pass
 
@@ -144,7 +144,7 @@ def get_high_restart_pods(namespace: str = "default", threshold: int = 3) -> str
                         "state": str(cs.state)
                     })
         return json.dumps(problem_pods, indent=2) if problem_pods else "No pods above restart threshold"
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: K8s client operations may raise various API or network errors
         pass
 

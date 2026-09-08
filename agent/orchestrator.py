@@ -183,104 +183,104 @@ def _load_tools() -> list:
         from .tools.k8s_tool import k8s_tools
         tools.extend(k8s_tools)
         logger.info("Loaded K8s tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.jenkins_tool import jenkins_tools
         tools.extend(jenkins_tools)
         logger.info("Loaded Jenkins tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.kibana_tool import kibana_tools
         tools.extend(kibana_tools)
         logger.info("Loaded Kibana tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.artifactory_tool import artifactory_tools
         tools.extend(artifactory_tools)
         logger.info("Loaded Artifactory tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.nginx_tool import get_nginx_tools
         tools.extend(get_nginx_tools())
         logger.info("Loaded Nginx tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.prometheus_tools import PROMETHEUS_TOOLS
         tools.extend(PROMETHEUS_TOOLS)
         logger.info("Loaded Prometheus tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.grafana_tool import GRAFANA_TOOLS
         tools.extend(GRAFANA_TOOLS)
         logger.info("Loaded Grafana tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.llm_tools import LLM_TOOLS
         tools.extend(LLM_TOOLS)
         logger.info("Loaded LLM tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.aws_tool import AWS_TOOLS
         tools.extend(AWS_TOOLS)
         logger.info("Loaded AWS tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.cloudwatch_tool import CLOUDWATCH_TOOLS
         tools.extend(CLOUDWATCH_TOOLS)
         logger.info("Loaded CloudWatch tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.database_tool import DATABASE_TOOLS
         tools.extend(DATABASE_TOOLS)
         logger.info("Loaded Database tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.docker_tool import DOCKER_TOOLS
         tools.extend(DOCKER_TOOLS)
         logger.info("Loaded Docker tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.github_tool import GITHUB_TOOLS
         tools.extend(GITHUB_TOOLS)
         logger.info("Loaded GitHub tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.pagerduty_tool import PAGERDUTY_TOOLS
         tools.extend(PAGERDUTY_TOOLS)
         logger.info("Loaded PagerDuty tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.ssl_tool import SSL_TOOLS
         tools.extend(SSL_TOOLS)
         logger.info("Loaded SSL tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.terraform_tool import TERRAFORM_TOOLS
         tools.extend(TERRAFORM_TOOLS)
         logger.info("Loaded Terraform tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     try:
         from .tools.knowledge_base_tool import KB_TOOLS
         tools.extend(KB_TOOLS)
         logger.info("Loaded Knowledge Base tools")
-    except Exception:
-        pass  # Intentionally broad: tool loading may fail due to missing deps, config, or import errors
+    except Exception as e:
+        logger.warning("Failed to load tool module: %s", e)
     if not tools:
         logger.error("No tools loaded - agent will have very limited capability")
     # Wrap all tools with permission checks
@@ -404,13 +404,12 @@ class Orchestrator:
                 "corr_id": corr_id,
                 "latency_seconds": round(latency, 2),
             }
-        except Exception:
-            # Intentionally broad: orchestrator run() may encounter agent, LLM, or tool errors
+        except Exception as e:  # noqa: BLE001
             latency = time.time() - start_time
             metrics.record_latency(latency)
             metrics.record_request("error")
             metrics.record_error("Exception", "orchestrator")
-            logger.exception("Agent error [corr_id=%s] for question=%r", corr_id, question)
+            logger.exception("Agent error [corr_id=%s] for question=%r: %s", corr_id, question, e)
             return {"answer": "Error: agent execution failed", "tool_used": None, "sources": None}
 
     def llm_health(self) -> dict:

@@ -59,9 +59,9 @@ def _init_telemetry():
         logger.info("OpenTelemetry tracing enabled → %s", otel_endpoint)
     except ImportError:
         logger.warning("opentelemetry not installed. Run: pip install opentelemetry-api")
-    except Exception:
-        # Intentionally broad: OpenTelemetry init may fail due to missing deps or config issues
-        pass
+    except Exception as e:
+        # Broad exception caught during OpenTelemetry init – log and continue
+        logger.warning("OpenTelemetry init failed: %s", e)
 
 
 _init_telemetry()
@@ -150,9 +150,9 @@ class StructuredAuditLogger:
                 if log_dir:
                     os.makedirs(log_dir, exist_ok=True)
                 self._file = open(self._path, "a", buffering=1)
-            except Exception:
-                # Intentionally broad: audit log write may fail due to disk/permission issues
-                pass
+            except Exception as e:
+                # Broad exception caught while ensuring audit log file – log and fallback
+                logger.warning("Failed to ensure audit log file: %s", e)
                 self._file = open(os.devnull, "w")
 
     def log(self, event: AuditEvent) -> None:

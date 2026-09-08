@@ -25,7 +25,7 @@ def _run_terraform(args: list, cwd: str = TERRAFORM_PATH) -> tuple[str, str, int
         return result.stdout, result.stderr, result.returncode
     except FileNotFoundError:
         return "", "Terraform not found. Is it installed and in PATH?", 1
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: OSError, subprocess errors
         return "", "terraform command failed", 1
 
@@ -38,7 +38,7 @@ def terraform_validate() -> str:
         if code != 0:
             return f"Terraform validation failed:\n{stderr or stdout}"
         return f"Terraform validation passed:\n{stdout}"
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error validating Terraform"
 
@@ -63,7 +63,7 @@ def terraform_plan(destroy: bool = False) -> str:
         summary = "\n".join(summary_lines[-10:]) if summary_lines else stdout[-500:]
 
         return f"Terraform Plan:\n{summary}"
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error generating Terraform plan"
 
@@ -84,7 +84,7 @@ def terraform_apply(auto_approve: bool = False) -> str:
             return f"Terraform apply failed:\n{stderr or stdout}"
 
         return f"Terraform apply succeeded:\n{stdout[-1000:]}"
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error applying Terraform"
 
@@ -104,7 +104,7 @@ def terraform_destroy(auto_approve: bool = False) -> str:
             return f"Terraform destroy failed:\n{stderr or stdout}"
 
         return f"Terraform destroy succeeded:\n{stdout[-1000:]}"
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error destroying Terraform resources"
 
@@ -128,7 +128,7 @@ def terraform_state_list(resource: str = "") -> str:
 
         lines = stdout.strip().split("\n")
         return f"Terraform State Resources ({len(lines)}):\n" + "\n".join(f"  {r}" for r in lines)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error listing Terraform state"
 
@@ -145,7 +145,7 @@ def terraform_output() -> str:
             return "No Terraform outputs defined."
 
         return f"Terraform Outputs:\n{stdout}"
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error getting Terraform output"
 
@@ -159,7 +159,7 @@ def terraform_show() -> str:
             return f"Terraform show failed:\n{stderr or stdout}"
 
         return f"Terraform State (JSON):\n{stdout[-2000:]}"
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error showing Terraform state"
 

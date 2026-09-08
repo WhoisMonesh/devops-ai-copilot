@@ -19,7 +19,7 @@ def _run_docker_command(args: list) -> tuple[str, str, int]:
             timeout=30,
         )
         return result.stdout, result.stderr, result.returncode
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: FileNotFoundError (docker not installed), OSError, subprocess errors
         return "", "docker command failed", 1
 
@@ -47,7 +47,7 @@ def docker_list_containers(all_containers: bool = False) -> str:
         result_lines.extend(lines[1:])
 
         return "\n".join(result_lines)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error listing containers"
 
@@ -76,7 +76,7 @@ def docker_container_logs(container_name: str, lines: int = 50, follow: bool = F
             return f"No logs available for {container_name}"
 
         return f"Logs for {container_name} (last {lines} lines):\n{output}"[:5000]
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error getting container logs"
 
@@ -101,7 +101,7 @@ def docker_container_stats(container_name: str = "", stats_all: bool = False) ->
             return "No container stats available."
 
         return "Docker Container Stats:\n" + "\n".join(lines)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error getting container stats"
 
@@ -119,7 +119,7 @@ def docker_image_list() -> str:
             return "No Docker images found."
 
         return "Docker Images:\n" + "\n".join(lines)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error listing images"
 
@@ -137,7 +137,7 @@ def docker_swarm_services() -> str:
             return "No Swarm services found."
 
         return "Docker Swarm Services:\n" + "\n".join(lines)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error listing Swarm services"
 
@@ -155,7 +155,7 @@ def docker_swarm_nodes() -> str:
             return "No Swarm nodes found."
 
         return "Docker Swarm Nodes:\n" + "\n".join(lines)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error listing Swarm nodes"
 
@@ -176,7 +176,7 @@ def docker_system_info() -> str:
         info_lines.append(f"\nDocker Server Version: {v_stdout.strip()}")
 
         return "\n".join(info_lines)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
         # Intentionally broad: subprocess errors
         return "Error getting Docker system info"
 

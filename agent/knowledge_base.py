@@ -231,7 +231,7 @@ def get_entry(entry_id: str, collection: str) -> Optional[dict]:
             "created_at": meta.get("created_at", ""),
             "updated_at": meta.get("updated_at", ""),
         }
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.error("get_entry(%s, %s) failed", entry_id, collection)
         return None
 
@@ -260,7 +260,7 @@ def update_entry(
         coll.update(ids=[entry_id], **updates)
         logger.info("Updated KB entry %s in %s", entry_id, collection)
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.error("update_entry(%s) failed", entry_id)
         return False
 
@@ -272,7 +272,7 @@ def delete_entry(entry_id: str, collection: str) -> bool:
         coll.delete(ids=[entry_id])
         logger.info("Deleted KB entry %s from %s", entry_id, collection)
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.error("delete_entry(%s) failed", entry_id)
         return False
 
@@ -298,7 +298,7 @@ def list_entries(collection: str, limit: int = 50) -> list[dict]:
             })
         entries.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
         return entries[:limit]
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.error("list_entries(%s) failed", collection)
         return []
 
@@ -310,7 +310,7 @@ def get_stats() -> dict:
         try:
             coll = _get_or_create_collection(coll_name)
             stats[coll_name] = coll.count()
-        except Exception:
+        except Exception:  # noqa: BLE001
             stats[coll_name] = -1
     return stats
 
